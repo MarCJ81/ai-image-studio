@@ -1866,9 +1866,10 @@
     // 다크 모드
     $('#themeToggle').addEventListener('click', function () {
       var cur = document.documentElement.getAttribute('data-theme');
-      var next = cur === 'dark' ? 'light' : 'dark';
+      var next = cur === 'light' ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', next);
-      try { localStorage.setItem('oneTapImageStudio.theme', next); } catch (e) { /* noop */ }
+      this.setAttribute('aria-label', next === 'light' ? '어두운 화면으로 전환' : '밝은 화면으로 전환');
+      try { localStorage.setItem('oneTapImageStudio.theme.v2', next); } catch (e) { /* noop */ }
     });
 
     // Pro 제공자
@@ -2031,8 +2032,22 @@
   function init() {
     cacheEls();
     try {
-      var t = localStorage.getItem('oneTapImageStudio.theme');
-      if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      var t = localStorage.getItem('oneTapImageStudio.theme.v2');
+      if (t === 'dark' || t === 'light') {
+        document.documentElement.setAttribute('data-theme', t);
+        var toggleBtn = $('#themeToggle');
+        if (toggleBtn) toggleBtn.setAttribute('aria-label', t === 'light' ? '어두운 화면으로 전환' : '밝은 화면으로 전환');
+      }
+    } catch (e) { /* noop */ }
+
+    // 투명도 줄이기 설정 — 유리 대신 불투명 판으로
+    try {
+      var mqReduce = window.matchMedia('(prefers-reduced-transparency: reduce)');
+      var applyTransparency = function (m) {
+        document.documentElement.setAttribute('data-transparency', m.matches ? 'reduce' : 'keep');
+      };
+      applyTransparency(mqReduce);
+      if (mqReduce.addEventListener) mqReduce.addEventListener('change', applyTransparency);
     } catch (e) { /* noop */ }
 
     restore();

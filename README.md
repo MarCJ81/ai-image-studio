@@ -113,7 +113,8 @@ POST https://my-proxy.example.com/generate
 ```
 ai-image-studio/
 ├── index.html                 화면 골격 (탭 4개)
-├── styles.css                 라이트/다크 · 3열 스튜디오 · 모바일
+├── tokens.css                 C안 Dark Glass 토큰 (캔버스·글래스·보라/민트·불투명 폴백)
+├── styles.css                 다크 글래스 스튜디오 · 캔버스 중심 3열 · 모바일
 ├── app.js                     캔버스 렌더 · 사진 누끼 · Pro 호출 · 브리지
 ├── core.js                    DOM 없는 순수 로직 (비율·테마·누끼·텍스트·프롬프트·API)
 ├── engines/
@@ -128,6 +129,14 @@ ai-image-studio/
 - `core.js`는 `window.ImageStudioCore`와 `module.exports`를 동시에 지원합니다. 브라우저·node에서 같은 코드로 테스트합니다.
 - 테마 팔레트는 `design-ref-engine`의 `tokens()`에서 가져와 WCAG 대비를 유지합니다. 엔진이 없으면 내장 팔레트로 동작합니다.
 - 제목 후킹 점수는 `copy-psych-engine`의 `diagnose()`를 사용합니다.
+
+### 화면 디자인 (C안 · Dark Glass Studio)
+
+- 캔버스 `#06070B` + 라디얼 글로우 2개(보라·민트). 유리 카드는 `rgba(255,255,255,.05)` + 1px 반투명 보더, blur 18px.
+- 포인트는 역할을 고정합니다 — **보라 `#8B5CF6` = 지금 눌러야 할 것(액션·선택·상태)**, **민트 `#34E0C8` = 성공·수치(라이브 점·단계 완료·`01` 인덱스)**. 두 색이 경쟁하지 않습니다.
+- 썸네일 작업영역이 화면의 주인공입니다. 스테이지는 세로를 뷰포트에 맞추고, 캔버스는 어두운 체크보드 판 위에 흰 종이로 떠 보이게 뒀습니다(모서리 크롭 마크 · 종이 그림자).
+- 패널은 `01 비율 → 05 문구`의 작업 순서를 그대로 번호로 드러냈습니다. 좌우 패널은 내부 스크롤 + sticky, 무대는 순서상 맨 위(모바일)로.
+- `prefers-reduced-transparency`에서는 유리 대신 불투명 `#14151B`로 떨어집니다. 라이트 모드는 선택 옵션(상단 해/달 버튼)이며 같은 토큰만 덮어씁니다.
 
 ---
 
@@ -175,11 +184,12 @@ python3 uitest.py
 정적 파일만 있으면 됩니다. GitHub Pages 기준:
 
 1. 이 폴더를 저장소 루트(또는 `ai-image-studio/`)에 올립니다.
-2. Pages 소스를 `main` / root로 설정합니다.
+2. Pages 소스를 `gh-pages` / root로 설정합니다. (이 저장소는 `main`·`gh-pages` 두 브랜치에 같은 파일을 올립니다.)
 3. `.nojekyll`이 있으므로 `assets/`, `engines/`가 그대로 서빙됩니다.
 4. `index.html`의 canonical·`og:url`, `robots.txt`·`sitemap.xml`의 주소를 실제 저장소 이름에 맞춥니다.
 
-> 이번 작업에서는 GitHub에 푸시하지 않았습니다.
+- 저장소: `https://github.com/MarCJ81/ai-image-studio` · 라이브: `https://marcj81.github.io/ai-image-studio/`
+- 배포 파일: `index.html` `styles.css` `tokens.css` `app.js` `core.js` `engines/` `assets/` `favicon.svg` `privacy.html` `robots.txt` `sitemap.xml` `.nojekyll` `README.md` (테스트·preview 이미지는 저장소에 올리지 않습니다.)
 
 ---
 
@@ -196,4 +206,5 @@ python3 uitest.py
 
 ## 10. 버전
 
+`1.1.0` (2026-11-22) — C안(Dark Glass Studio) 전면 리디자인 · 토큰 분리(`tokens.css`) · 캔버스 중심 스테이지 · 고대비/투명도 폴백. 기능은 1.0.0과 같습니다.
 `1.0.0` (2026-11-21) — 무료 모드 · 테마 6종 · 누끼 · Pro 4개 제공자 · 프롬프트 브리지 · 검증 완료.
