@@ -155,7 +155,7 @@ ai-image-studio/
 ```bash
 # 단위 테스트 (DOM 없이)
 /workspace/scratch/node-v22.11.0-linux-x64/bin/node test.js
-# → PASS 236   FAIL 0
+# → PASS 244   FAIL 0
 
 # 실제 브라우저 (데스크톱 1440×900 · 모바일 390×844)
 python3 uitest.py
