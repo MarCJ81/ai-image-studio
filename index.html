@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>원탭 이미지·썸네일 스튜디오 — 사진 누끼·썸네일·AI 배경을 브라우저에서</title>
+<meta name="description" content="사진 배경을 원클릭으로 투명하게 지우고, 유튜브·인스타·스마트스토어·블로그 썸네일을 실제 PNG/JPG/WebP로 저장합니다. API 키 없이 100% 무료, 유료 AI 키를 붙이면 문맥에 맞는 배경까지 자동 생성." />
+<meta name="theme-color" content="#ffffff" />
+<meta name="color-scheme" content="light dark" />
+<meta property="og:title" content="원탭 이미지·썸네일 스튜디오" />
+<meta property="og:description" content="사진 누끼부터 AI 배경까지. 브라우저에서 바로 완성하는 썸네일." />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="canonical" href="https://marcj81.github.io/ai-image-studio/" />
+<meta property="og:url" content="https://marcj81.github.io/ai-image-studio/" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">본문으로 바로가기</a>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#make" data-action="go-make" aria-label="원탭 이미지·썸네일 스튜디오 홈">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 40 40" width="34" height="34">
+          <defs>
+            <linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#ff8a3d" /><stop offset=".55" stop-color="#ff3d77" /><stop offset="1" stop-color="#7b5cff" />
+            </linearGradient>
+          </defs>
+          <rect x="1" y="1" width="38" height="38" rx="12" fill="url(#brandGrad)" />
+          <rect x="8" y="9" width="24" height="22" rx="4" fill="none" stroke="#fff" stroke-width="1.8" stroke-opacity=".72" />
+          <circle cx="15.4" cy="16.2" r="2.6" fill="#fff" fill-opacity=".92" />
+          <path d="M8.6 28.2l6.6-7.1 4.3 4.2 3.6-3.7 8.1 6.6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </span>
+      <span class="brand-text">
+        <strong>원탭 이미지·썸네일</strong>
+        <small>ONE-TAP IMAGE STUDIO</small>
+      </span>
+    </a>
+
+    <nav class="tabs" role="tablist" aria-label="주요 화면">
+      <button class="tab is-active" role="tab" aria-selected="true" aria-controls="view-make" data-tab="make">썸네일 제작</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="view-pro" data-tab="pro">Pro AI 이미지</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="view-bridge" data-tab="bridge">프롬프트 브리지</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="view-guide" data-tab="guide">사용 안내</button>
+    </nav>
+
+    <div class="top-actions">
+      <span class="save-state" id="saveState" aria-live="polite">자동 저장됨</span>
+      <button type="button" class="icon-btn" id="themeToggle" aria-label="다크 모드로 전환" title="라이트/다크">
+        <svg class="ico-sun" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 1.6v2M10 16.4v2M1.6 10h2M16.4 10h2M4.1 4.1l1.4 1.4M14.5 14.5l1.4 1.4M15.9 4.1l-1.4 1.4M5.5 14.5l-1.4 1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <svg class="ico-moon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      </button>
+      <button type="button" class="btn btn-primary" id="topDownload" data-action="download">
+        <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><path d="M10 3v9m0 0l-3.4-3.4M10 12l3.4-3.4M4 15.6V17h12v-1.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <span id="topDownloadLabel">PNG 저장</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+
+  <!-- ══ 썸네일 제작 ══════════════════════════════════════ -->
+  <section class="view" id="view-make" role="tabpanel" aria-label="썸네일 제작">
+    <div class="studio">
+
+      <!-- 좌: 비율 · 테마 · 배경 -->
+      <aside class="panel col-left" aria-label="비율과 배경 설정">
+        <section class="block">
+          <div class="panel-head">
+            <h2>1 · 비율</h2>
+            <span class="chip" id="ratioChip">16:9</span>
+          </div>
+          <div class="ratio-grid" id="ratioGrid" role="radiogroup" aria-label="캔버스 비율"></div>
+          <p class="hint" id="ratioHint">1280×720 · 썸네일에 꼭 맞는 가로형</p>
+        </section>
+
+        <section class="block">
+          <div class="panel-head">
+            <h2>2 · 테마</h2>
+            <span class="muted" id="themeName">크림 에디토리얼</span>
+          </div>
+          <div class="theme-grid" id="themeGrid" role="radiogroup" aria-label="디자인 테마"></div>
+        </section>
+
+        <section class="block">
+          <div class="panel-head">
+            <h2>3 · 배경</h2>
+            <div class="seg seg-sm" id="bgSeg" role="group" aria-label="배경 소스">
+              <button type="button" class="seg-btn is-active" data-bg="theme">테마</button>
+              <button type="button" class="seg-btn" data-bg="color">단색</button>
+              <button type="button" class="seg-btn" data-bg="image">사진</button>
+            </div>
+          </div>
+          <div class="color-row">
+            <label class="field field-color">
+              <span>배경색</span>
+              <span class="color-wrap"><input type="color" id="bgColor" value="#F3EADD" /><em id="bgColorVal">#F3EADD</em></span>
+            </label>
+            <label class="field field-color">
+              <span>포인트색</span>
+              <span class="color-wrap"><input type="color" id="accentColor" value="#A8431F" /><em id="accentColorVal">#A8431F</em></span>
+            </label>
+          </div>
+          <label class="field range-field">
+            <span>질감 <b id="textureVal">40</b></span>
+            <input type="range" id="textureRange" min="0" max="100" value="40" />
+          </label>
+          <label class="field range-field">
+            <span>그레인 <b id="grainVal">22</b></span>
+            <input type="range" id="grainRange" min="0" max="100" value="22" />
+          </label>
+          <label class="field range-field">
+            <span>비네트 <b id="vignetteVal">30</b></span>
+            <input type="range" id="vignetteRange" min="0" max="100" value="30" />
+          </label>
+          <button type="button" class="btn btn-ghost btn-block" id="paletteReset">테마 색으로 되돌리기</button>
+        </section>
+
+        <section class="block block-note">
+          <h3 class="mini-title">이 브라우저에서만</h3>
+          <p class="hint">사진과 문구는 어디에도 업로드되지 않습니다. 저장한 이미지도 이 기기에 바로 내려받습니다.</p>
+        </section>
+      </aside>
+
+      <!-- 가운데: 캔버스 -->
+      <section class="stage" aria-label="썸네일 미리보기">
+        <div class="stage-top">
+          <div class="stage-label">
+            <span class="live-dot" aria-hidden="true"></span>
+            <strong id="stageRatioName">유튜브 썸네일</strong>
+            <span class="stage-dims" id="stageDims">1280 × 720</span>
+          </div>
+          <div class="stage-top-right">
+            <span class="safe-chip" id="safeChip">안전영역</span>
+            <label class="switch switch-sm" title="안전영역 표시">
+              <input type="checkbox" id="safeToggle" />
+              <span class="sr-only">안전영역 표시</span>
+              <i class="sw" aria-hidden="true"></i>
+            </label>
+          </div>
+        </div>
+
+        <div class="canvas-wrap" id="canvasWrap">
+          <div class="canvas-inner" id="canvasInner">
+            <canvas id="canvas" width="1280" height="720" aria-label="썸네일 미리보기 캔버스">이 브라우저는 캔버스를 지원하지 않습니다.</canvas>
+          </div>
+          <div class="canvas-empty" id="canvasEmpty" hidden>
+            <p>사진을 넣으면 여기에 바로 합성됩니다.</p>
+          </div>
+        </div>
+
+        <div class="stage-actions">
+          <div class="seg seg-sm" id="formatSeg" role="group" aria-label="저장 형식">
+            <button type="button" class="seg-btn is-active" data-format="png">PNG</button>
+            <button type="button" class="seg-btn" data-format="jpeg">JPG</button>
+            <button type="button" class="seg-btn" data-format="webp">WebP</button>
+          </div>
+          <label class="inline-range" title="JPG·WebP 품질">
+            <span>품질</span>
+            <input type="range" id="qualityRange" min="60" max="100" value="92" />
+            <b id="qualityVal">92</b>
+          </label>
+          <label class="inline-select">
+            <span class="sr-only">해상도 배율</span>
+            <select id="scaleSelect">
+              <option value="1">1×</option>
+              <option value="2">2× 고해상</option>
+            </select>
+          </label>
+          <button type="button" class="btn btn-ghost" id="copyImage" title="이미지를 클립보드로 복사">복사</button>
+          <button type="button" class="btn btn-primary" id="downloadBtn">
+            <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><path d="M10 3v9m0 0l-3.4-3.4M10 12l3.4-3.4M4 15.6V17h12v-1.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            <span id="downloadLabel">PNG 저장</span>
+          </button>
+        </div>
+        <p class="stage-note" id="stageNote">강조는 <b>**이렇게**</b> 감싸면 포인트색으로 바뀝니다. 파일명은 제목에서 자동으로 만듭니다.</p>
+      </section>
+
+      <!-- 우: 사진 · 문구 -->
+      <aside class="panel col-right" aria-label="사진과 문구 설정">
+        <section class="block">
+          <div class="panel-head">
+            <h2>사진</h2>
+            <span class="chip" id="photoState">없음</span>
+          </div>
+          <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="사진 업로드 또는 끌어다 놓기">
+            <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><path d="M16 21V7m0 0l-5 5m5-5l5 5M5 22v4a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <strong>사진 끌어다 놓기</strong>
+            <small>JPG·PNG·WebP · 이 브라우저 밖으로 나가지 않습니다</small>
+          </div>
+          <input type="file" id="photoInput" accept="image/*" hidden />
+          <div class="btn-row">
+            <button type="button" class="btn btn-ghost" id="sampleBtn">샘플 제품컷</button>
+            <button type="button" class="btn btn-ghost" id="photoClear" disabled>사진 빼기</button>
+          </div>
+
+          <div class="cut-box" id="cutBox" hidden>
+            <label class="switch"><input type="checkbox" id="cutToggle" checked /><span>배경 투명화</span><i class="sw" aria-hidden="true"></i></label>
+            <div class="cut-grid">
+              <label class="field">
+                <span>방식</span>
+                <select id="algoSelect">
+                  <option value="flood">가장자리 연결 (권장)</option>
+                  <option value="auto">색상 거리 전체</option>
+                  <option value="light">밝은 배경 지우기</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>강도 <b id="strengthVal">45</b></span>
+                <input type="range" id="strengthRange" min="0" max="100" value="45" />
+              </label>
+              <label class="field">
+                <span>허용 오차 <b id="toleranceVal">38</b></span>
+                <input type="range" id="toleranceRange" min="5" max="110" value="38" />
+              </label>
+              <label class="field">
+                <span>가장자리 부드럽게 <b id="featherVal">3</b></span>
+                <input type="range" id="featherRange" min="0" max="12" value="3" />
+              </label>
+            </div>
+            <p class="hint" id="cutStats">테두리 색을 읽어 배경을 지웁니다. 남는 부분은 허용 오차를 올리세요.</p>
+            <div class="btn-row">
+              <button type="button" class="btn btn-ghost" id="cutPreview">원본/누끼 비교</button>
+              <button type="button" class="btn btn-ghost" id="bgFromPhoto">사진을 배경으로</button>
+            </div>
+          </div>
+
+          <div class="subject-box" id="subjectBox" hidden>
+            <label class="field range-field">
+              <span>크기 <b id="scaleVal">100</b>%</span>
+              <input type="range" id="subjectScale" min="20" max="190" value="100" />
+            </label>
+            <label class="field range-field">
+              <span>가로 위치 <b id="posXVal">50</b></span>
+              <input type="range" id="subjectX" min="0" max="100" value="50" />
+            </label>
+            <label class="field range-field">
+              <span>세로 위치 <b id="posYVal">50</b></span>
+              <input type="range" id="subjectY" min="0" max="100" value="50" />
+            </label>
+            <label class="field range-field">
+              <span>그림자 <b id="shadowVal">45</b></span>
+              <input type="range" id="shadowRange" min="0" max="100" value="45" />
+            </label>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="panel-head">
+            <h2>문구</h2>
+            <span class="score-chip" id="headlineScore" title="카피심리 엔진으로 계산한 제목 후킹 점수">–</span>
+          </div>
+          <label class="field">
+            <span>제목 <b class="count" id="titleCount">0/90</b></span>
+            <textarea id="titleInput" rows="2" maxlength="90" placeholder="예) 겨울 가습기, **3만원대**랑 12만원대 차이"></textarea>
+          </label>
+          <p class="hint" id="scoreTip">**강조** 문법으로 핵심 단어만 포인트색으로.</p>
+          <label class="field">
+            <span>부제</span>
+            <input type="text" id="subInput" maxlength="70" placeholder="한 줄 설명 (선택)" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>배지</span>
+            <input type="text" id="badgeInput" maxlength="18" placeholder="예) 직접 비교" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>핸들</span>
+            <input type="text" id="handleInput" maxlength="28" placeholder="@your.channel" autocomplete="off" />
+          </label>
+          <div class="btn-row">
+            <div class="seg seg-sm" id="alignSeg" role="group" aria-label="문구 정렬">
+              <button type="button" class="seg-btn is-active" data-align="auto">자동</button>
+              <button type="button" class="seg-btn" data-align="left">왼쪽</button>
+              <button type="button" class="seg-btn" data-align="center">가운데</button>
+            </div>
+          </div>
+          <div class="toggles">
+            <label class="switch switch-sm"><input type="checkbox" id="showBadge" checked /><span>배지</span><i class="sw" aria-hidden="true"></i></label>
+            <label class="switch switch-sm"><input type="checkbox" id="showSub" checked /><span>부제</span><i class="sw" aria-hidden="true"></i></label>
+            <label class="switch switch-sm"><input type="checkbox" id="showHandle" checked /><span>핸들</span><i class="sw" aria-hidden="true"></i></label>
+          </div>
+        </section>
+
+        <section class="block">
+          <h3 class="mini-title">더 빠르게</h3>
+          <div class="btn-row">
+            <button type="button" class="btn btn-ghost" id="goPro">AI 배경 만들기</button>
+            <button type="button" class="btn btn-ghost" id="goBridge">프롬프트 복사</button>
+          </div>
+          <p class="hint">키 없이도 지금 상태 그대로 저장할 수 있습니다.</p>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ══ Pro AI 이미지 ═══════════════════════════════════ -->
+  <section class="view" id="view-pro" role="tabpanel" aria-label="Pro AI 이미지" hidden>
+    <div class="pro-wrap">
+      <header class="page-head">
+        <div>
+          <h1>Pro AI 이미지</h1>
+          <p>제목과 주제만 넣으면 썸네일에 맞는 배경을 만들어 캔버스에 바로 얹습니다. 키는 이 탭의 세션에만 남습니다.</p>
+        </div>
+        <span class="pill" id="proState">무료 모드 · 키 없이 사용 중</span>
+      </header>
+
+      <section aria-labelledby="providerTitle">
+        <div class="section-head">
+          <h2 id="providerTitle">API 선택</h2>
+          <span class="hint">1·2·3번은 대표 이미지/텍스트 API, 4번은 직접 만든 프록시 서버입니다.</span>
+        </div>
+        <div class="provider-grid" id="providerGrid" role="radiogroup" aria-label="Pro API 제공자"></div>
+      </section>
+
+      <div class="pro-grid">
+        <section class="card" id="configCard" aria-labelledby="configTitle">
+          <div class="card-head">
+            <h2 id="configTitle">연결 설정</h2>
+            <span class="chip" id="configChip">OpenAI</span>
+          </div>
+          <div id="configFields" class="config-fields">
+            <p class="hint">API 키 붙여넣기 — 키는 이 탭의 세션에만 저장됩니다.</p>
+          </div>
+          <p class="hint" id="providerNote"></p>
+          <div class="btn-row">
+            <button type="button" class="btn btn-ghost" id="keyClear">키 지우기</button>
+            <a class="btn btn-ghost" id="keyLink" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">키 발급 페이지</a>
+          </div>
+          <p class="hint key-hint">세션 저장 · 탭을 닫으면 사라집니다. 키는 공급자에게만 직접 전송되고 이 앱의 서버로는 가지 않습니다.</p>
+        </section>
+
+        <section class="card" aria-labelledby="sceneTitle">
+          <div class="card-head">
+            <h2 id="sceneTitle">장면 프롬프트</h2>
+            <span class="chip" id="promptAspect">16:9</span>
+          </div>
+          <label class="field">
+            <span>주제 <b class="count">비우면 제목 사용</b></span>
+            <textarea id="topicInput" rows="2" maxlength="160" placeholder="예) 겨울철 가습기 비교, 세라믹 가습기와 초음파 가습기"></textarea>
+          </label>
+          <div class="chip-row" id="styleChips" role="group" aria-label="이미지 스타일"></div>
+          <div class="two-col">
+            <label class="field">
+              <span>분위기</span>
+              <select id="moodSelect"></select>
+            </label>
+            <label class="field">
+              <span>조명</span>
+              <select id="lightSelect"></select>
+            </label>
+          </div>
+          <label class="field">
+            <span>추가 지시 (선택)</span>
+            <input type="text" id="extraInput" maxlength="120" placeholder="예) 오크 테이블 위, 오른쪽에 여백" autocomplete="off" />
+          </label>
+          <div class="prompt-preview">
+            <div class="prompt-preview-head">
+              <span>생성될 프롬프트</span>
+              <button type="button" class="mini-btn" id="promptCopy">복사</button>
+            </div>
+            <p id="promptPreview">제목을 입력하면 영어 프롬프트가 자동으로 만들어집니다.</p>
+          </div>
+        </section>
+      </div>
+
+      <section class="card run-card" aria-labelledby="runTitle">
+        <div class="card-head">
+          <h2 id="runTitle">생성</h2>
+          <span class="chip" id="costChip">키 필요</span>
+        </div>
+        <div class="run-row">
+          <button type="button" class="btn btn-primary btn-lg" id="generateBtn">
+            <span class="spinner" aria-hidden="true"></span>
+            <span id="generateLabel">AI 배경 생성</span>
+          </button>
+          <button type="button" class="btn btn-ghost" id="sampleGenerate">키 없이 샘플로 체험</button>
+          <button type="button" class="btn btn-ghost" id="cancelBtn" hidden>취소</button>
+          <span class="run-status" id="runStatus" role="status" aria-live="polite">대기 중</span>
+        </div>
+        <ol class="run-steps" id="runSteps" hidden></ol>
+        <div class="result-strip" id="resultStrip" hidden></div>
+      </section>
+
+      <section class="card tip-card">
+        <h2>이미지 생성이 막힐 때</h2>
+        <ul class="plain-list">
+          <li><b>브라우저 직접 호출 차단(CORS)</b> — OpenAI는 브라우저에서 바로 부르면 막히는 경우가 있습니다. 그때는 4번 <b>자체 API 서버</b>에 프록시 주소를 넣으세요.</li>
+          <li><b>Claude는 이미지를 그리지 않습니다</b> — 프롬프트를 고도화해 무료 모드나 구독 AI로 이어지는 용도입니다.</li>
+          <li><b>결제·권한</b> — 키가 맞아도 이미지 생성 권한이나 잔액이 없으면 429가 납니다.</li>
+        </ul>
+      </section>
+    </div>
+  </section>
+
+  <!-- ══ 프롬프트 브리지 ═════════════════════════════════ -->
+  <section class="view" id="view-bridge" role="tabpanel" aria-label="프롬프트 브리지" hidden>
+    <div class="pro-wrap">
+      <header class="page-head">
+        <div>
+          <h1>프롬프트 브리지</h1>
+          <p>이미 구독 중인 ChatGPT·Gemini·Midjourney에 그대로 붙여넣고, 받은 이미지를 다시 여기로 가져오면 끝납니다.</p>
+        </div>
+        <span class="pill">키 0원</span>
+      </header>
+
+      <div class="bridge-grid">
+        <section class="card">
+          <div class="card-head">
+            <h2>1 · 프롬프트 복사</h2>
+            <span class="chip" id="bridgeAspect">16:9</span>
+          </div>
+          <div class="seg" id="bridgeToolSeg" role="group" aria-label="복사할 도구">
+            <button type="button" class="seg-btn is-active" data-tool="chatgpt">ChatGPT</button>
+            <button type="button" class="seg-btn" data-tool="gemini">Gemini</button>
+            <button type="button" class="seg-btn" data-tool="midjourney">Midjourney</button>
+            <button type="button" class="seg-btn" data-tool="negative">네거티브</button>
+          </div>
+          <pre class="prompt-box" id="bridgePrompt" tabindex="0">제목을 먼저 입력하세요.</pre>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="bridgeCopy">프롬프트 복사</button>
+            <button type="button" class="btn btn-ghost" id="bridgeRefresh">다시 만들기</button>
+          </div>
+          <p class="hint">“이미지에 글자를 넣지 마세요”가 프롬프트에 포함되어 한글 제목은 캔버스에서 얹습니다.</p>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>2 · 받은 이미지 가져오기</h2>
+            <span class="chip">배경으로</span>
+          </div>
+          <div class="dropzone dropzone-tall" id="bridgeDrop" tabindex="0" role="button" aria-label="AI가 만든 이미지 업로드">
+            <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="5" y="6" width="22" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="13" r="2.2" fill="currentColor"/><path d="M6.5 23l6.4-6.6 4 3.9 3.5-3.5 5.6 6.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <strong>AI 결과 이미지 끌어다 놓기</strong>
+            <small>배경 레이어에 바로 깔리고, 위에 제목이 얹힙니다</small>
+          </div>
+          <input type="file" id="bridgeInput" accept="image/*" hidden />
+          <div class="btn-row">
+            <button type="button" class="btn btn-ghost" id="bridgeToMake">썸네일 화면으로</button>
+          </div>
+          <p class="hint" id="bridgeStatus">아직 가져온 이미지가 없습니다.</p>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="card-head"><h2>3 · 붙여넣는 곳</h2></div>
+        <div class="link-grid">
+          <a class="link-card" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer"><b>ChatGPT</b><span>이미지 생성 · DALL·E</span></a>
+          <a class="link-card" href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer"><b>Gemini</b><span>Imagen 이미지 생성</span></a>
+          <a class="link-card" href="https://www.midjourney.com/" target="_blank" rel="noopener noreferrer"><b>Midjourney</b><span>--ar 파라미터 포함</span></a>
+          <a class="link-card" href="https://www.adobe.com/products/firefly.html" target="_blank" rel="noopener noreferrer"><b>Adobe Firefly</b><span>상업적 사용 안전</span></a>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ══ 사용 안내 ═══════════════════════════════════════ -->
+  <section class="view" id="view-guide" role="tabpanel" aria-label="사용 안내" hidden>
+    <div class="pro-wrap">
+      <header class="page-head">
+        <div>
+          <h1>사용 안내</h1>
+          <p>무료 모드는 끝까지 무료입니다. 키를 붙이는 순간에만 Pro 기능이 열립니다.</p>
+        </div>
+        <span class="pill">무료 · 서버 없음</span>
+      </header>
+
+      <div class="guide-grid">
+        <section class="card">
+          <h2>무료 모드로 되는 일</h2>
+          <ul class="check-list">
+            <li>유튜브 16:9, 인스타·스레드 4:5, 정사각, 스마트스토어 1000×1000, 블로그 1200×800</li>
+            <li>사진을 넣고 테두리 색을 읽어 배경을 투명하게 (강도·오차·페더 조절)</li>
+            <li>테마 6종의 질감·그라데이션·그림자·배지·한글 타이포 자동 배치</li>
+            <li>PNG / JPG / WebP 저장, 2배 해상도 저장</li>
+            <li>구독 AI에 붙일 이미지 프롬프트 생성·복사</li>
+          </ul>
+        </section>
+        <section class="card">
+          <h2>키를 붙이면 열리는 일</h2>
+          <ul class="check-list">
+            <li>OpenAI(gpt-image-1·DALL·E 3) · Gemini(Imagen 3)로 배경 생성</li>
+            <li>생성한 이미지를 캔버스 배경에 자동 삽입</li>
+            <li>Claude로 프롬프트를 더 정교하게 다듬기</li>
+            <li>자체 API 서버(프록시) 연결</li>
+          </ul>
+          <p class="hint">이미지 1장당 비용은 공급자 가격표에 따릅니다. 앱은 결제를 대신하지 않습니다.</p>
+        </section>
+      </div>
+
+      <section class="card">
+        <h2>사진 누끼가 잘 안 될 때</h2>
+        <div class="faq">
+          <details><summary>배경이 남아 있어요</summary><p>허용 오차를 5~10씩 올리고, 방식은 <b>가장자리 색 자동</b>을 먼저 시도하세요. 배경과 비슷한 색이 피사체 안에 많다면 <b>배경과 연결된 영역만</b>이 안전합니다.</p></details>
+          <details><summary>피사체 가장자리가 하얗게 파여요</summary><p>페더를 4~6으로 올리고 강도를 35~45로 낮추세요. 허용 오차가 너무 높으면 피사체가 함께 지워집니다.</p></details>
+          <details><summary>흰 배경 제품 사진이에요</summary><p><b>밝은 배경 지우기</b>가 가장 빠릅니다. 제품에 흰 부분이 많다면 <b>배경과 연결된 영역만</b>으로 바꾸세요.</p></details>
+          <details><summary>누끼 이미지는 어디에 저장되나요?</summary><p>메모리에만 있습니다. 새로고침하면 사라지고, 서버로 전송되지 않습니다.</p></details>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>안전하게 쓰는 법</h2>
+        <ul class="plain-list">
+          <li>API 키는 <b>sessionStorage</b>에만 저장됩니다. 공용 PC에서는 탭을 닫으면 사라집니다.</li>
+          <li>키가 필요 없는 작업은 키를 넣지 않아도 전부 됩니다.</li>
+          <li>이 앱에는 서버가 없습니다. 이미지와 문구는 이 브라우저에서만 처리됩니다.</li>
+          <li>사람 얼굴이 포함된 사진을 외부 AI에 올릴 때는 초상권·초상 사용 범위를 확인하세요.</li>
+          <li>AI로 만든 이미지를 상업적으로 쓸 때는 각 공급자의 약관을 확인하세요.</li>
+        </ul>
+      </section>
+
+      <section class="card meta-card">
+        <h2>만든 것</h2>
+        <p class="hint">원탭 이미지·썸네일 스튜디오 v1.0 · 순수 HTML/CSS/JS, 빌드 없음 · 폰트 IBM Plex Sans KR(로컬) · 카피심리·디자인 레퍼런스 엔진 내장.</p>
+        <p class="hint">버전 1.0.0 · <a href="privacy.html">개인정보 처리방침</a></p>
+      </section>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="engines/design-ref-engine.js"></script>
+<script src="engines/copy-psych-engine.js"></script>
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

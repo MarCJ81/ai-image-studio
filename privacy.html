@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>개인정보 처리방침 — 원탭 이미지·썸네일 스튜디오</title>
+<meta name="description" content="원탭 이미지·썸네일 스튜디오는 서버가 없습니다. 사진과 문구는 브라우저 안에서만 처리되고, API 키는 탭 세션에만 저장됩니다." />
+<meta name="robots" content="index,follow" />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="canonical" href="https://marcj81.github.io/ai-image-studio/privacy.html" />
+<style>
+  :root { --ink:#16181d; --ink2:#4b5361; --ink3:#7a8290; --line:#e4e7ec; --brand:#e02a5c; --bg:#f6f7f9; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',sans-serif; line-height:1.7; }
+  .wrap { max-width:760px; margin:0 auto; padding:40px 20px 80px; }
+  header { display:flex; align-items:center; gap:10px; margin-bottom:26px; }
+  header img { width:34px; height:34px; border-radius:10px; }
+  header a { color:var(--ink); text-decoration:none; font-weight:700; font-size:14px; }
+  h1 { font-size:26px; letter-spacing:-.03em; margin:0 0 6px; }
+  .meta { color:var(--ink3); font-size:12.5px; margin-bottom:26px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:22px 22px 18px; margin-bottom:14px; }
+  h2 { font-size:15px; margin:0 0 8px; letter-spacing:-.01em; }
+  p, li { font-size:13.5px; color:var(--ink2); }
+  ul { padding-left:18px; margin:8px 0 0; }
+  li { margin-bottom:6px; }
+  a { color:var(--brand); }
+  .back { display:inline-block; margin-top:18px; font-size:13px; font-weight:600; text-decoration:none; color:var(--brand); }
+  .small { font-size:12px; color:var(--ink3); }
+  code { background:#f1f3f6; padding:1px 5px; border-radius:5px; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="favicon.svg" alt="" />
+    <a href="./">원탭 이미지·썸네일 스튜디오</a>
+  </header>
+
+  <h1>개인정보 처리방침</h1>
+  <p class="meta">시행일 2026-11-21 · 버전 1.0</p>
+
+  <div class="card">
+    <h2>한 줄 요약</h2>
+    <p>이 앱은 <b>서버가 없습니다.</b> 사진과 문구는 사용자의 브라우저 안에서만 처리되고, 어떤 이미지도 운영자에게 전송되지 않습니다. 유료 AI 기능을 켤 때만 사용자의 키로 해당 AI 회사에 직접 요청합니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>1. 처리하는 정보와 목적</h2>
+    <ul>
+      <li><b>사진·이미지 파일</b> — 썸네일 합성과 배경 투명화를 위해 브라우저 메모리에서만 읽습니다. 저장·전송하지 않으며 새로고침하면 사라집니다.</li>
+      <li><b>제목·부제·배지 등 입력 문구</b> — 캔버스에 그리는 데만 사용합니다. 역시 브라우저 안에서만 존재합니다.</li>
+      <li><b>작업 설정</b> — 비율·테마·슬라이더 값은 <code>sessionStorage</code>에 저장되어 같은 탭에서 새로고침해도 유지됩니다. 탭을 닫으면 삭제됩니다.</li>
+      <li><b>API 키(선택)</b> — 사용자가 직접 입력한 경우에만 <code>sessionStorage</code>에 보관하며, 이미지 생성 요청 시 해당 공급자(OpenAI·Google·Anthropic 또는 사용자가 지정한 서버)로만 전송됩니다.</li>
+      <li><b>화면 테마</b> — 라이트/다크 선택만 <code>localStorage</code>에 저장합니다.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>2. 전송되는 곳</h2>
+    <ul>
+      <li><b>무료 모드</b> — 외부 전송이 전혀 없습니다. 사진 누끼, 테마, 다운로드 모두 오프라인 캔버스로 동작합니다.</li>
+      <li><b>Pro 모드</b> — 사용자가 ‘생성’ 버튼을 누를 때만, 사용자가 고른 공급자의 API로 프롬프트와 키가 직접 전송됩니다. 이때 해당 공급자의 약관·개인정보 처리방침이 함께 적용됩니다.</li>
+      <li><b>광고·분석</b> — 없습니다. 추적 스크립트, 쿠키, 외부 폰트 CDN을 사용하지 않습니다.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>3. 보관과 파기</h2>
+    <p>앱은 별도 보관소를 운영하지 않습니다. 브라우저 저장값은 사용자가 탭을 닫거나 ‘키 지우기’를 누르면 사라집니다. 다운로드한 이미지 파일은 사용자의 기기에 남으며, 그 관리 책임은 사용자에게 있습니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>4. 사용자의 선택</h2>
+    <ul>
+      <li>사진을 넣지 않고도 모든 테마를 사용할 수 있습니다.</li>
+      <li>Pro 기능은 키를 넣지 않으면 작동하지 않으며, 언제든 ‘키 지우기’로 제거할 수 있습니다.</li>
+      <li>브라우저의 사이트 데이터 삭제 기능으로 저장된 설정을 즉시 지울 수 있습니다.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>5. 이미지 권리</h2>
+    <p>사용자가 넣은 사진의 저작권·초상권은 사용자에게 있습니다. AI로 생성한 이미지의 사용 조건은 각 공급자의 약관을 따릅니다. 타인의 사진을 무단으로 사용하거나, 생성 이미지를 오해하게 쓰는 책임은 사용자에게 있습니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>6. 문의</h2>
+    <p class="small">이 앱은 정적 웹페이지로 배포됩니다. 운영자 연락처는 배포한 저장소의 안내를 따릅니다. 개인정보 관련 요청은 해당 저장소의 이슈로 남겨 주세요.</p>
+    <a class="back" href="./">← 스튜디오로 돌아가기</a>
+  </div>
+</div>
+</body>
+</html>
