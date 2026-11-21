@@ -260,7 +260,7 @@ html[data-theme="light"] * { scrollbar-color: rgba(12, 13, 15, .2) transparent; 
   color: var(--ink-4); font-weight: 500; margin-top: 4px;
 }
 
-.tabs { display: flex; gap: 3px; flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; gap: 3px; flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 3px 0; margin: -3px 0; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab {
   position: relative; border: 1px solid transparent; background: transparent;
@@ -1004,6 +1004,9 @@ html[data-theme="light"] .toast {
   .dock-group { width: 100%; gap: 8px; padding: 0; }
   .inline-range { flex: 1 1 130px; min-width: 130px; }
   .stage-actions #copyImage { flex: 1 1 100px; }
+  .dock-group { justify-content: space-between; }
+  .dock-group .inline-select { flex: 0 0 auto; }
+  .dock-group #copyImage { flex: 1 1 100px; }
   .stage-actions .btn-primary { margin-left: 0; flex: 1 1 100%; }
   .pro-wrap { padding: 20px 12px 48px; }
   .page-head h1 { font-size: 22px; }
