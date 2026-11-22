@@ -65,7 +65,11 @@
 
   <!-- ══ 썸네일 제작 ══════════════════════════════════════ -->
   <section class="view" id="view-make" role="tabpanel" aria-label="썸네일 제작">
-    <div class="studio">
+    <div class="studio studio--titled">
+      <header class="view-head">
+        <h1>썸네일 제작</h1>
+        <p>제목과 사진만 넣으면 1280×720 썸네일이 바로 나옵니다. 이미지는 이 브라우저에서만 처리됩니다.</p>
+      </header>
 
       <!-- 좌: 비율 · 테마 · 배경 -->
       <aside class="panel col-left" aria-label="비율과 배경 설정">
@@ -197,7 +201,7 @@
             <strong>사진 끌어다 놓기</strong>
             <small>JPG·PNG·WebP · 이 브라우저 밖으로 나가지 않습니다</small>
           </div>
-          <input type="file" id="photoInput" accept="image/*" hidden />
+          <input type="file" id="photoInput" accept="image/*" aria-label="사진 파일 선택" hidden />
           <div class="btn-row">
             <button type="button" class="btn btn-ghost" id="sampleBtn">샘플 제품컷</button>
             <button type="button" class="btn btn-ghost" id="photoClear" disabled>사진 빼기</button>
@@ -442,7 +446,7 @@
             <strong>AI 결과 이미지 끌어다 놓기</strong>
             <small>배경 레이어에 바로 깔리고, 위에 제목이 얹힙니다</small>
           </div>
-          <input type="file" id="bridgeInput" accept="image/*" hidden />
+          <input type="file" id="bridgeInput" accept="image/*" aria-label="프롬프트 브리지로 받은 이미지 선택" hidden />
           <div class="btn-row">
             <button type="button" class="btn btn-ghost" id="bridgeToMake">썸네일 화면으로</button>
           </div>
