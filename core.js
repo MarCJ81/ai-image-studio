@@ -1,7 +1,8 @@
 /* ============================================================
    원탭 이미지·썸네일 스튜디오 · core.js
    DOM에 닿지 않는 순수 로직만 담는다. node에서는 require, 브라우저에서는 window.ImageStudioCore.
-     · 캔버스 비율 프리셋 5종 / 테마 6종
+     · 캔버스 비율 프리셋 5종 / 테마 20종(카테고리 6종)
+     · 레퍼런스 벤치마킹 엔진(유튜브 URL · 픽셀 팔레트/톤/구조 분석 · 프리셋)
      · 배경 투명화(가장자리 색 샘플링 · 연결 영역 · 밝은 배경) + 페더링
      · 한국어 줄바꿈·자동 크기 피팅
      · 이미지 프롬프트 빌더(구독 AI 브리지)
@@ -102,54 +103,890 @@
     return RATIOS[0];
   }
 
-  /* ── 테마 6종 (design-ref-engine의 검증된 팔레트에서 파생) ── */
+  /* ── 테마 20종 ─────────────────────────────────────
+     cat      에디토리얼 · 미디어 · 그래픽 · 레트로 · 럭스 · 커머스
+     texture  배경 질감 페인터 키 (app.js의 TEXTURES)
+     frame    피사체를 받치는 매트 — none/photo/panel/polaroid/film/hairline/glass/offset
+     deco     정규화 좌표(0~1) 장식 레이어. fg:true면 문구 위에 다시 그린다.
+     preview  테마 칩 미리보기 — 칩 안에서 배경·타입·포인트를 흉내 낸다.
+  */
+  var THEME_CATEGORIES = [
+    { id: 'all', name: '전체' },
+    { id: 'editorial', name: '에디토리얼' },
+    { id: 'media', name: '미디어' },
+    { id: 'graphic', name: '그래픽' },
+    { id: 'retro', name: '레트로' },
+    { id: 'luxe', name: '럭스' },
+    { id: 'commerce', name: '커머스' }
+  ];
+
   var THEMES = [
     {
       id: 'editorial', name: '크림 에디토리얼', short: '에디토리얼', tag: '종이 질감 · 세리프',
+      cat: 'editorial',
       ref: 'cream-editorial', dark: false, texture: 'paper',
       palette: { bg: '#F3EADD', surface: '#FFFCF6', ink: '#33281E', sub: '#6A5B4A', line: '#E0D2BE', accent: '#A8431F', accentSoft: '#F6E3D6' },
       layout: { align: 'left', text: { x: .07, y: .54, w: .52, h: .38 }, subject: { x: .55, y: .13, w: .38, h: .76 }, badge: 'tab' },
-      titleWeight: 700, titleTracking: -0.015, lineHeight: 1.16, kicker: 'EYE EDITORIAL'
+      titleWeight: 700, titleTracking: -0.015, lineHeight: 1.16, kicker: 'EYE EDITORIAL',
+      kickerStyle: 'rule',
+      frame: { kind: 'photo', pad: .02, border: .011, shadow: .3, rotate: -0.012 },
+      deco: [
+        { kind: 'edgebar', side: 'left', thick: .012, color: 'accent' },
+        { kind: 'label', text: 'EYE EDITORIAL', x: .07, y: .462, size: .0122, color: 'sub', tracking: .2 },
+        { kind: 'rule', x: .07, y: .498, w: .16, h: .0022, color: 'line' }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'left', accentBar: 'left' }
     },
     {
       id: 'magazine', name: '스위스 매거진', short: '매거진', tag: '격자 · 큰 숫자',
+      cat: 'editorial',
       ref: 'swiss-magazine', dark: false, texture: 'grid',
       palette: { bg: '#F2F2EF', surface: '#FFFFFF', ink: '#111111', sub: '#5C5C58', line: '#D8D8D2', accent: '#D33A1E', accentSoft: '#F6DDD6' },
-      layout: { align: 'left', text: { x: .07, y: .12, w: .53, h: .34 }, subject: { x: .52, y: .4, w: .44, h: .54 }, badge: 'bar' },
-      titleWeight: 800, titleTracking: -0.035, lineHeight: 1.05, kicker: 'ISSUE 04'
+      layout: { align: 'left', text: { x: .07, y: .1, w: .44, h: .38 }, subject: { x: .5, y: .12, w: .46, h: .76 }, badge: 'bar' },
+      titleWeight: 800, titleTracking: -0.035, lineHeight: 1.05, kicker: 'ISSUE 04',
+      kickerStyle: 'mono',
+      frame: { kind: 'photo', pad: .012, border: .007, shadow: .22, rotate: 0 },
+      deco: [
+        { kind: 'bar', x: .8, y: 0, w: .2, h: .052, color: 'accent' },
+        { kind: 'label', text: 'THUMBNAIL / GRID', x: .07, y: .058, size: .0118, color: 'sub', tracking: .16 },
+        { kind: 'rule', x: .07, y: .93, w: .86, h: .0014, color: 'line' },
+        { kind: 'number', text: '04', x: .07, y: .72, size: .16, color: 'ink', alpha: .14, align: 'left' }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'left', accentBar: 'top' }
+    },
+    {
+      id: 'typeposter', name: '빅타입 포스터', short: '빅타입', tag: '타이포 · 여백',
+      cat: 'editorial',
+      dark: false, texture: 'poster',
+      palette: { bg: '#F7F4EE', surface: '#FFFFFF', ink: '#0F0E0C', sub: '#57534B', line: '#DAD4C8', accent: '#E03A16', accentSoft: '#FBE0D8' },
+      layout: { align: 'left', text: { x: .06, y: .44, w: .56, h: .52 }, subject: { x: .64, y: .07, w: .34, h: .44 }, badge: 'box' },
+      titleWeight: 900, titleTracking: -0.045, lineHeight: 0.94, kicker: 'TYPE POSTER',
+      kickerStyle: 'mono',
+      frame: { kind: 'none' },
+      deco: [
+        { kind: 'number', text: '01', x: .97, y: .34, size: .38, color: 'line', alpha: .5, align: 'right' },
+        { kind: 'label', text: 'TYPE POSTER / 2026', x: .06, y: .05, size: .0118, color: 'sub', tracking: .3 },
+        { kind: 'rule', x: .06, y: .4, w: .26, h: .005, color: 'accent' },
+        { kind: 'rule', x: .06, y: .965, w: .88, h: .0014, color: 'line' }
+      ],
+      scrim: 'strong',
+      preview: { shape: 'left', accentBar: 'top' }
+    },
+    {
+      id: 'monochrome', name: '모노크롬', short: '모노', tag: '흑백 · 하이라인',
+      cat: 'editorial',
+      dark: false, texture: 'mono',
+      palette: { bg: '#EDEDEA', surface: '#FFFFFF', ink: '#0D0D0D', sub: '#4F4F4F', line: '#CFCFC9', accent: '#262626', accentSoft: '#DEDED8' },
+      layout: { align: 'left', text: { x: .08, y: .5, w: .44, h: .42 }, subject: { x: .55, y: .1, w: .4, h: .8 }, badge: 'line' },
+      titleWeight: 600, titleTracking: 0.005, lineHeight: 1.1, kicker: 'MONO / 002',
+      kickerStyle: 'mono',
+      frame: { kind: 'hairline', pad: .018, lineW: .0014, color: 'ink', alpha: .35 },
+      deco: [
+        { kind: 'frame', inset: .038, lineW: .0012, color: 'line' },
+        { kind: 'label', text: 'MONO / 002', x: .08, y: .07, size: .0118, color: 'sub', tracking: .24 },
+        { kind: 'rule', x: .08, y: .475, w: .2, h: .0016, color: 'ink', alpha: .55 }
+      ],
+      scrim: 'strong',
+      preview: { shape: 'left', accentBar: 'bottom' }
+    },
+    {
+      id: 'hanji', name: '한지 크래프트', short: '한지', tag: '한지 · 수묵 · 낙관',
+      cat: 'editorial',
+      dark: false, texture: 'hanji',
+      palette: { bg: '#EFE6D2', surface: '#FBF6E9', ink: '#2A2117', sub: '#6B5B45', line: '#D8C9AE', accent: '#A8201A', accentSoft: '#F3DCD3' },
+      layout: { align: 'left', text: { x: .08, y: .52, w: .44, h: .4 }, subject: { x: .54, y: .1, w: .4, h: .78 }, badge: 'seal' },
+      titleWeight: 700, titleTracking: -0.012, lineHeight: 1.18, kicker: 'HANJI EDITION',
+      kickerStyle: 'rule',
+      frame: { kind: 'panel', pad: .022, fill: '#FBF6E9', radius: .008, border: .0018, shadow: .16 },
+      deco: [
+        { kind: 'brush', x: .08, y: .452, w: .22, h: .014, color: 'ink', alpha: .55 },
+        { kind: 'stamp', text: '印', cx: .9, cy: .88, r: .048, color: 'accent', textColor: '#FBF6E9', rotate: -0.06 },
+        { kind: 'label', text: '한지 · 수묵 에디션', x: .08, y: .06, size: .0122, color: 'sub', tracking: .08 }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'left', accentBar: 'none', seal: true }
     },
     {
       id: 'neon', name: '다크 네온', short: '네온', tag: '글로우 · 임팩트',
+      cat: 'media',
       ref: 'dark-neon', dark: true, texture: 'glow',
       palette: { bg: '#0B0D14', surface: '#12151F', ink: '#F5F7FF', sub: '#A9B1C6', line: '#2A3040', accent: '#39E6FF', accentSoft: '#123642' },
       layout: { align: 'left', text: { x: .07, y: .5, w: .6, h: .4 }, subject: { x: .5, y: .07, w: .46, h: .86 }, badge: 'pill' },
-      titleWeight: 800, titleTracking: -0.03, lineHeight: 0.99, kicker: 'NIGHT SIGNAL'
+      titleWeight: 800, titleTracking: -0.03, lineHeight: 0.99, kicker: 'NIGHT SIGNAL',
+      kickerStyle: 'plain',
+      frame: { kind: 'none' },
+      deco: [
+        { kind: 'rule', x: .07, y: .44, w: .4, h: .0028, color: 'accent', glow: true },
+        { kind: 'brackets', inset: .05, len: .03, lineW: .0016, color: 'ink', alpha: .35 },
+        { kind: 'label', text: 'NIGHT SIGNAL', x: .07, y: .4, size: .0118, color: 'accent', tracking: .26 }
+      ],
+      scrim: 'strong',
+      preview: { shape: 'left', accentBar: 'bottom', dark: true }
     },
     {
-      id: 'minimal', name: '미니멀 럭셔리', short: '미니멀', tag: '여백 · 얇은 선',
-      ref: 'minimal-luxury', dark: false, texture: 'none',
-      palette: { bg: '#F6F3EC', surface: '#FFFFFF', ink: '#1E1B16', sub: '#6E675C', line: '#D9D2C4', accent: '#8A6B3F', accentSoft: '#EDE5D6' },
-      layout: { align: 'center', text: { x: .12, y: .62, w: .76, h: .28 }, subject: { x: .24, y: .12, w: .52, h: .45 }, badge: 'line' },
-      titleWeight: 600, titleTracking: 0.02, lineHeight: 1.3, kicker: 'LESS, BUT BETTER'
+      id: 'cyber', name: '사이버 HUD', short: '사이버', tag: '스캔 · 모 노 · 브래킷',
+      cat: 'media',
+      dark: true, texture: 'scan',
+      palette: { bg: '#050A12', surface: '#0B1520', ink: '#E6F7FF', sub: '#8FA9BF', line: '#1B3346', accent: '#38F2C0', accentSoft: '#0C2A28' },
+      layout: { align: 'left', text: { x: .07, y: .46, w: .58, h: .44 }, subject: { x: .55, y: .08, w: .4, h: .84 }, badge: 'box' },
+      titleWeight: 800, titleTracking: -0.02, lineHeight: 1.0, kicker: 'SYS // 04',
+      kickerStyle: 'mono',
+      frame: { kind: 'hairline', pad: .012, lineW: .0018, color: 'accent', alpha: .45 },
+      deco: [
+        { kind: 'brackets', inset: .045, len: .045, lineW: .002, color: 'accent', alpha: .8 },
+        { kind: 'ticks', inset: .03, len: .012, lineW: .0012, color: 'ink', alpha: .3 },
+        { kind: 'label', text: 'SYS // 04  ·  SCAN OK', x: .07, y: .07, size: .0112, color: 'accent', tracking: .22 },
+        { kind: 'rule', x: .07, y: .41, w: .3, h: .0018, color: 'accent', alpha: .7 }
+      ],
+      scrim: 'strong',
+      preview: { shape: 'left', accentBar: 'top', dark: true }
     },
     {
-      id: 'retail', name: '커머스 클린', short: '커머스', tag: '제품 중심 · 혜택 칩',
-      ref: 'commerce-clean', dark: false, texture: 'soft',
-      palette: { bg: '#F7F8FA', surface: '#FFFFFF', ink: '#101418', sub: '#5A6373', line: '#E2E6EC', accent: '#E0322B', accentSoft: '#FDECEA' },
-      layout: { align: 'center', text: { x: .06, y: .05, w: .88, h: .29 }, subject: { x: .2, y: .4, w: .6, h: .5 }, badge: 'pill' },
-      titleWeight: 800, titleTracking: -0.03, lineHeight: 1.1, kicker: '오늘의 특가'
+      id: 'newsflash', name: '뉴스 속보', short: '뉴스', tag: '속보 · 괘선 · 띠',
+      cat: 'media',
+      dark: false, texture: 'news',
+      palette: { bg: '#FFFFFF', surface: '#F4F4F2', ink: '#0A0A0A', sub: '#4A4A4A', line: '#D6D6D6', accent: '#D0021B', accentSoft: '#FBE3E3' },
+      layout: { align: 'left', text: { x: .06, y: .2, w: .5, h: .4 }, subject: { x: .52, y: .3, w: .44, h: .64 }, badge: 'bar' },
+      titleWeight: 800, titleTracking: -0.03, lineHeight: 1.06, kicker: 'BREAKING',
+      kickerStyle: 'box',
+      frame: { kind: 'none' },
+      deco: [
+        { kind: 'bar', x: 0, y: 0, w: 1, h: .07, color: 'ink' },
+        { kind: 'label', text: 'BREAKING NEWS', x: .06, y: .021, size: .0135, color: 'surface', tracking: .18, weight: 800 },
+        { kind: 'bar', x: .06, y: .185, w: .12, h: .012, color: 'accent' },
+        { kind: 'rule', x: .06, y: .93, w: .88, h: .002, color: 'ink' },
+        { kind: 'rule', x: .06, y: .955, w: .88, h: .001, color: 'line' }
+      ],
+      scrim: 'strong',
+      preview: { shape: 'left', accentBar: 'top', news: true }
+    },
+    {
+      id: 'filmnoir', name: '필름 누아르', short: '누아르', tag: '레터박스 · 그레인',
+      cat: 'retro',
+      dark: true, texture: 'film',
+      palette: { bg: '#14100C', surface: '#241D16', ink: '#F3E9DA', sub: '#B9A88F', line: '#3A2F24', accent: '#E8B45C', accentSoft: '#3A2C18' },
+      layout: { align: 'left', text: { x: .09, y: .5, w: .44, h: .34 }, subject: { x: .54, y: .09, w: .38, h: .74 }, badge: 'line' },
+      titleWeight: 600, titleTracking: 0.002, lineHeight: 1.14, kicker: '35MM / 1.85:1',
+      kickerStyle: 'mono',
+      frame: { kind: 'film', pad: .022, border: .009, fill: '#F3E9DA' },
+      deco: [
+        { kind: 'bar', x: 0, y: 0, w: 1, h: .062, color: '#080604' },
+        { kind: 'bar', x: 0, y: .938, w: 1, h: .062, color: '#080604' },
+        { kind: 'label', text: '35MM · 1.85:1', x: .09, y: .022, size: .0108, color: 'sub', tracking: .22 },
+        { kind: 'label', text: 'TAKE 07 / SCENE 2', x: .91, y: .022, size: .0108, color: 'sub', tracking: .18, align: 'right' },
+        { kind: 'rule', x: .09, y: .455, w: .2, h: .0016, color: 'accent', alpha: .8 }
+      ],
+      scrim: 'strong',
+      preview: { shape: 'left', accentBar: 'none', dark: true, film: true }
+    },
+    {
+      id: 'retroprint', name: '레트로 인쇄', short: '레트로', tag: '할프톤 · 리소',
+      cat: 'retro',
+      dark: false, texture: 'halftone',
+      palette: { bg: '#F1E4C8', surface: '#FBF2DF', ink: '#1F2B29', sub: '#5A6862', line: '#D9C7A2', accent: '#D2543A', accentSoft: '#F6DDD2' },
+      layout: { align: 'left', text: { x: .07, y: .12, w: .48, h: .34 }, subject: { x: .5, y: .4, w: .46, h: .56 }, badge: 'sticker' },
+      titleWeight: 800, titleTracking: -0.03, lineHeight: 1.04, kicker: 'RISO 02',
+      kickerStyle: 'mono',
+      frame: { kind: 'panel', pad: .014, fill: '#FBF2DF', radius: .006, border: .0022, shadow: .18 },
+      deco: [
+        { kind: 'dots', x: .74, y: .04, w: .22, h: .18, gap: .018, r: .0042, color: 'accent', alpha: .5 },
+        { kind: 'circle', cx: .12, cy: .86, r: .07, color: '#1F6E6A', alpha: .22, fill: true },
+        { kind: 'label', text: 'RISO 02 / SPOT', x: .07, y: .06, size: .0115, color: 'sub', tracking: .2 },
+        { kind: 'rule', x: .07, y: .965, w: .86, h: .0016, color: 'accent', alpha: .55 }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'left', accentBar: 'top', dots: true }
     },
     {
       id: 'vivid', name: '비비드 팝', short: '비비드', tag: '색 블록 · 스티커',
+      cat: 'graphic',
       ref: 'vivid-pop', dark: false, texture: 'blocks',
       palette: { bg: '#FFE24B', surface: '#FFFFFF', ink: '#16130B', sub: '#5A4E16', line: '#E8C837', accent: '#1F4BFF', accentSoft: '#DCE3FF' },
-      layout: { align: 'left', text: { x: .07, y: .08, w: .56, h: .3 }, subject: { x: .4, y: .38, w: .56, h: .56 }, badge: 'sticker' },
-      titleWeight: 800, titleTracking: -0.04, lineHeight: 1.02, kicker: 'POP PICK'
+      layout: { align: 'left', text: { x: .07, y: .08, w: .42, h: .28 }, subject: { x: .43, y: .34, w: .53, h: .6 }, badge: 'sticker' },
+      titleWeight: 800, titleTracking: -0.04, lineHeight: 1.02, kicker: 'POP PICK',
+      kickerStyle: 'plain',
+      frame: { kind: 'offset', pad: .02, border: .005, offset: .01, fill: '#FFFFFF' },
+      deco: [
+        { kind: 'number', text: 'NEW', x: .88, y: .06, size: .045, color: 'ink', alpha: .9, align: 'center', rotate: -0.14, box: true },
+        { kind: 'dots', x: .04, y: .74, w: .18, h: .18, gap: .016, r: .004, color: 'ink', alpha: .3 },
+        { kind: 'bar', x: 0, y: .93, w: 1, h: .07, color: 'ink' }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'left', accentBar: 'bottom', pop: true }
+    },
+    {
+      id: 'brutal', name: '네오 브루탈', short: '브루탈', tag: '하드 섀도 · 형광',
+      cat: 'graphic',
+      ref: 'neo-brutalism', dark: false, texture: 'brutal',
+      palette: { bg: '#FFFDF2', surface: '#FFFFFF', ink: '#000000', sub: '#474747', line: '#000000', accent: '#C6F432', accentSoft: '#EEFBC0' },
+      layout: { align: 'left', text: { x: .06, y: .55, w: .7, h: .38 }, subject: { x: .29, y: .05, w: .44, h: .42 }, badge: 'sticker' },
+      titleWeight: 900, titleTracking: -0.04, lineHeight: 0.98, kicker: 'NO.01',
+      kickerStyle: 'box',
+      frame: { kind: 'offset', pad: .018, border: .0045, offset: .012, fill: '#FFFFFF' },
+      deco: [
+        { kind: 'frame', inset: .028, lineW: .004, color: 'ink' },
+        { kind: 'bar', x: .06, y: .49, w: .22, h: .02, color: 'accent' },
+        { kind: 'label', text: 'NO.01 / RAW', x: .06, y: .045, size: .0118, color: 'ink', tracking: .18, weight: 800 }
+      ],
+      scrim: 'strong',
+      preview: { shape: 'left', accentBar: 'top', brutal: true }
+    },
+    {
+      id: 'collage', name: '콜라주 컷', short: '콜라주', tag: '찢은 종이 · 테이프',
+      cat: 'graphic',
+      dark: false, texture: 'collage',
+      palette: { bg: '#F0EBE1', surface: '#FFFDF8', ink: '#1C1A16', sub: '#5C564B', line: '#D5CEC0', accent: '#E4572E', accentSoft: '#FADFD6' },
+      layout: { align: 'left', text: { x: .06, y: .52, w: .43, h: .42 }, subject: { x: .56, y: .08, w: .4, h: .76 }, badge: 'sticker' },
+      titleWeight: 800, titleTracking: -0.025, lineHeight: 1.04, kicker: 'CUT & PASTE',
+      kickerStyle: 'mono',
+      frame: { kind: 'polaroid', pad: .028, fill: '#FFFDF8', shadow: .3, rotate: -0.028 },
+      deco: [
+        { kind: 'tape', x: .54, y: .05, w: .12, h: .04, angle: -0.16, color: '#E8D9B8', alpha: .9 },
+        { kind: 'tape', x: .82, y: .8, w: .1, h: .034, angle: 0.22, color: '#E8D9B8', alpha: .8 },
+        { kind: 'label', text: 'CUT & PASTE / 03', x: .06, y: .06, size: .0118, color: 'sub', tracking: .2 },
+        { kind: 'brush', x: .06, y: .48, w: .26, h: .016, color: 'accent', alpha: .8 }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'left', accentBar: 'none', collage: true }
+    },
+    {
+      id: 'bento', name: '벤토 그리드', short: '벤토', tag: '카드 · 라운딩',
+      cat: 'graphic',
+      ref: 'bento-saas', dark: false, texture: 'bento',
+      palette: { bg: '#EFF1F6', surface: '#FFFFFF', ink: '#0B1020', sub: '#4E5568', line: '#DDE2EA', accent: '#4338CA', accentSoft: '#EDECFB' },
+      layout: { align: 'left', text: { x: .06, y: .06, w: .42, h: .3 }, subject: { x: .51, y: .3, w: .45, h: .64 }, badge: 'pill' },
+      titleWeight: 800, titleTracking: -0.035, lineHeight: 1.06, kicker: 'BENTO / 01',
+      kickerStyle: 'plain',
+      frame: { kind: 'panel', pad: .016, fill: '#FFFFFF', radius: .024, border: .0012, shadow: .18 },
+      deco: [
+        { kind: 'panel', x: .06, y: .4, w: .4, h: .13, radius: .018, color: 'surface', alpha: .9, border: true },
+        { kind: 'panel', x: .06, y: .56, w: .4, h: .13, radius: .018, color: 'surface', alpha: .9, border: true },
+        { kind: 'label', text: 'BENTO / 01', x: .06, y: .42, size: .0105, color: 'sub', tracking: .16 },
+        { kind: 'label', text: '▦  4 CARDS', x: .06, y: .58, size: .0105, color: 'accent', tracking: .1 },
+        { kind: 'label', text: '24px GUTTER', x: .06, y: .74, size: .0098, color: 'sub', tracking: .12 }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'card', accentBar: 'none', bento: true }
+    },
+    {
+      id: 'minimal', name: '미니멀 럭셔리', short: '미니멀', tag: '여백 · 얇은 선',
+      cat: 'luxe',
+      ref: 'minimal-luxury', dark: false, texture: 'none',
+      palette: { bg: '#F6F3EC', surface: '#FFFFFF', ink: '#1E1B16', sub: '#6E675C', line: '#D9D2C4', accent: '#8A6B3F', accentSoft: '#EDE5D6' },
+      layout: { align: 'center', text: { x: .12, y: .62, w: .76, h: .28 }, subject: { x: .24, y: .12, w: .52, h: .45 }, badge: 'line' },
+      titleWeight: 600, titleTracking: 0.02, lineHeight: 1.3, kicker: 'LESS, BUT BETTER',
+      kickerStyle: 'rule',
+      frame: { kind: 'none' },
+      deco: [
+        { kind: 'frame', inset: .045, lineW: .0009, color: 'line' },
+        { kind: 'circle', cx: .78, cy: .36, r: .265, color: 'surface', alpha: .55, fill: true },
+        { kind: 'circle', cx: .78, cy: .36, r: .265, color: 'line', alpha: .5, fill: false, lineW: .0008 },
+        { kind: 'circle', cx: .5, cy: .585, r: .0035, color: 'accent', alpha: .9, fill: true }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'center', accentBar: 'none' }
+    },
+    {
+      id: 'darkluxe', name: '블랙 골드', short: '블랙골드', tag: '골드 헤어라인',
+      cat: 'luxe',
+      dark: true, texture: 'darkgold',
+      palette: { bg: '#0C0B09', surface: '#15130F', ink: '#F7F1E3', sub: '#B5A88F', line: '#2B2620', accent: '#D8B26A', accentSoft: '#2A2318' },
+      layout: { align: 'left', text: { x: .09, y: .55, w: .52, h: .34 }, subject: { x: .52, y: .1, w: .4, h: .78 }, badge: 'line' },
+      titleWeight: 600, titleTracking: 0.01, lineHeight: 1.22, kicker: 'PRIVATE EDITION',
+      kickerStyle: 'rule',
+      frame: { kind: 'hairline', pad: .022, lineW: .001, color: 'accent', alpha: .45 },
+      deco: [
+        { kind: 'frame', inset: .05, lineW: .0009, color: 'accent', alpha: .35 },
+        { kind: 'label', text: 'PRIVATE EDITION', x: .09, y: .075, size: .0108, color: 'accent', tracking: .3 },
+        { kind: 'rule', x: .09, y: .505, w: .18, h: .0014, color: 'accent', alpha: .8 }
+      ],
+      scrim: 'strong',
+      preview: { shape: 'left', accentBar: 'none', dark: true, gold: true }
+    },
+    {
+      id: 'glass', name: '글래스 모피즘', short: '글래스', tag: '메시 · 프로스트',
+      cat: 'graphic',
+      dark: false, texture: 'mesh',
+      palette: { bg: '#E8ECFF', surface: '#FFFFFF', ink: '#14162B', sub: '#4C5170', line: '#C9D0E8', accent: '#5B4BFF', accentSoft: '#E4E1FF' },
+      layout: { align: 'left', text: { x: .07, y: .52, w: .45, h: .4 }, subject: { x: .55, y: .12, w: .39, h: .76 }, badge: 'pill' },
+      titleWeight: 800, titleTracking: -0.03, lineHeight: 1.06, kicker: 'GLASS / UI',
+      kickerStyle: 'plain',
+      frame: { kind: 'glass', pad: .02, radius: .024 },
+      deco: [
+        { kind: 'glasspanel', x: .055, y: .46, w: .56, h: .47, radius: .03, alpha: .42 },
+        { kind: 'blob', cx: .82, cy: .2, r: .3, color: '#9B8CFF', alpha: .35 },
+        { kind: 'blob', cx: .12, cy: .88, r: .26, color: '#7ED8FF', alpha: .3 },
+        { kind: 'label', text: 'GLASS / UI', x: .07, y: .075, size: .0112, color: 'sub', tracking: .24 }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'left', accentBar: 'none', glass: true }
+    },
+    {
+      id: 'pastel', name: '파스텔 클린', short: '파스텔', tag: '소프트 블롭',
+      cat: 'graphic',
+      dark: false, texture: 'blob',
+      palette: { bg: '#FDF1F4', surface: '#FFFFFF', ink: '#2A2230', sub: '#6A5F72', line: '#EBD9E2', accent: '#C4407A', accentSoft: '#FBE3ED' },
+      layout: { align: 'left', text: { x: .08, y: .5, w: .46, h: .42 }, subject: { x: .56, y: .1, w: .38, h: .8 }, badge: 'pill' },
+      titleWeight: 700, titleTracking: -0.02, lineHeight: 1.16, kicker: 'SOFT MODE',
+      kickerStyle: 'plain',
+      frame: { kind: 'panel', pad: .014, fill: '#FFFFFF', radius: .03, border: .0012, shadow: .12 },
+      deco: [
+        { kind: 'blob', cx: .18, cy: .16, r: .3, color: '#FFC9DE', alpha: .55 },
+        { kind: 'blob', cx: .86, cy: .82, r: .3, color: '#C9D8FF', alpha: .45 },
+        { kind: 'label', text: 'SOFT MODE', x: .08, y: .06, size: .0112, color: 'sub', tracking: .22 }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'left', accentBar: 'none', pastel: true }
+    },
+    {
+      id: 'retail', name: '커머스 클린', short: '커머스', tag: '제품 중심 · 혜택 칩',
+      cat: 'commerce',
+      ref: 'commerce-clean', dark: false, texture: 'soft',
+      palette: { bg: '#F7F8FA', surface: '#FFFFFF', ink: '#101418', sub: '#5A6373', line: '#E2E6EC', accent: '#E0322B', accentSoft: '#FDECEA' },
+      layout: { align: 'center', text: { x: .06, y: .05, w: .88, h: .27 }, subject: { x: .24, y: .34, w: .52, h: .52 }, badge: 'pill' },
+      titleWeight: 800, titleTracking: -0.03, lineHeight: 1.1, kicker: '오늘의 특가',
+      kickerStyle: 'plain',
+      frame: { kind: 'none' },
+      deco: [
+        { kind: 'circle', cx: .5, cy: .58, r: .3, color: 'accent', alpha: .06, fill: true },
+        { kind: 'bar', x: .44, y: .255, w: .12, h: .006, color: 'accent' },
+        { kind: 'panel', x: .06, y: .9, w: .88, h: .075, radius: .012, color: 'surface', alpha: .85, border: true },
+        { kind: 'label', text: '무료배송 · 오늘 출발', x: .5, y: .928, size: .0135, color: 'ink', tracking: .02, align: 'center' }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'center', accentBar: 'none', retail: true }
+    },
+    {
+      id: 'sale', name: '세일 임팩트', short: '세일', tag: '그라데이션 · 가격',
+      cat: 'commerce',
+      dark: false, texture: 'gradient',
+      palette: { bg: '#FFF3EC', surface: '#FFFFFF', ink: '#1B0E08', sub: '#5C4033', line: '#F0D6C6', accent: '#E8340C', accentSoft: '#FFE1D6' },
+      layout: { align: 'left', text: { x: .06, y: .14, w: .5, h: .42 }, subject: { x: .56, y: .34, w: .42, h: .6 }, badge: 'sticker' },
+      titleWeight: 900, titleTracking: -0.04, lineHeight: 0.98, kicker: 'LIMITED',
+      kickerStyle: 'box',
+      frame: { kind: 'none' },
+      deco: [
+        { kind: 'gradient', x: .62, y: 0, w: .38, h: 1, from: 'accent', to: '#FF8A00', alpha: .92, angle: -0.35 },
+        { kind: 'circle', cx: .855, cy: .15, r: .075, color: '#FFFFFF', alpha: .95, fill: true },
+        { kind: 'label', text: 'SALE', x: .855, y: .141, size: .023, color: 'accent', tracking: .02, align: 'center', weight: 900 },
+        { kind: 'label', text: 'LIMITED / TODAY', x: .06, y: .07, size: .0118, color: 'sub', tracking: .24 }
+      ],
+      scrim: 'soft',
+      preview: { shape: 'left', accentBar: 'bottom', sale: true }
     }
   ];
   function themeById(id) {
     for (var i = 0; i < THEMES.length; i++) if (THEMES[i].id === id) return THEMES[i];
     return THEMES[0];
+  }
+  function themesByCategory(cat) {
+    if (!cat || cat === 'all') return THEMES.slice();
+    var found = false;
+    for (var i = 0; i < THEME_CATEGORIES.length; i++) if (THEME_CATEGORIES[i].id === cat) found = true;
+    if (!found) return THEMES.slice();
+    return THEMES.filter(function (t) { return t.cat === cat; });
+  }
+  function themeCategoryName(id) {
+    for (var i = 0; i < THEME_CATEGORIES.length; i++) if (THEME_CATEGORIES[i].id === id) return THEME_CATEGORIES[i].name;
+    return '전체';
+  }
+
+  /* ══════════════════════════════════════════════════════
+     레퍼런스 벤치마킹 엔진
+     · 유튜브 URL → 영상 ID → 공식 썸네일 목록
+     · 레퍼런스 픽셀 → 팔레트 · 톤 · 구조(레이아웃) 분석
+     · 분석값 → 테마 매칭 · 브랜드 프리셋 · 프롬프트 힌트
+     DOM에 닿지 않는 순수 함수만 둔다(node 테스트 가능).
+     ══════════════════════════════════════════════════════ */
+
+  function lumaOf(r, g, b) { return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; }
+  function lumaOfHex(hex) { var c = hexToRgb(hex); return lumaOf(c.r, c.g, c.b); }
+  function hsvOf(r, g, b) {
+    var rr = r / 255, gg = g / 255, bb = b / 255;
+    var max = Math.max(rr, gg, bb), min = Math.min(rr, gg, bb);
+    var d = max - min, h = 0;
+    if (d > 0.00001) {
+      if (max === rr) h = ((gg - bb) / d) % 6;
+      else if (max === gg) h = (bb - rr) / d + 2;
+      else h = (rr - gg) / d + 4;
+      h *= 60;
+      if (h < 0) h += 360;
+    }
+    return { h: round(h, 1), s: round(max === 0 ? 0 : d / max, 4), v: round(max, 4) };
+  }
+  function hsvOfHex(hex) { var c = hexToRgb(hex); return hsvOf(c.r, c.g, c.b); }
+  function hueDistance(a, b) {
+    var d = Math.abs(a - b) % 360;
+    return d > 180 ? 360 - d : d;
+  }
+
+  /* ── 유튜브 링크 → 영상 ID ────────────────────────── */
+  function parseYouTubeUrl(input) {
+    var raw = String(input == null ? '' : input).trim();
+    if (!raw) return { ok: false, reason: '링크를 입력하세요.' };
+    if (/^[A-Za-z0-9_-]{11}$/.test(raw)) {
+      return { ok: true, id: raw, kind: 'id', normalized: 'https://www.youtube.com/watch?v=' + raw };
+    }
+    var url;
+    try {
+      url = new URL(raw.indexOf('//') < 0 ? 'https://' + raw : raw);
+    } catch (e) {
+      return { ok: false, reason: '주소 형식을 읽지 못했습니다. youtube.com/watch?v=… 형태로 넣어 주세요.' };
+    }
+    var host = url.hostname.toLowerCase().replace(/^www\./, '').replace(/^m\./, '').replace(/^music\./, '');
+    var id = '', kind = 'watch';
+    if (host === 'youtu.be') {
+      id = (url.pathname.split('/').filter(Boolean)[0] || '');
+      kind = 'short';
+    } else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+      var parts = url.pathname.split('/').filter(Boolean);
+      if (parts[0] === 'watch') { id = url.searchParams.get('v') || ''; kind = 'watch'; }
+      else if (parts[0] === 'shorts') { id = parts[1] || ''; kind = 'shorts'; }
+      else if (parts[0] === 'embed') { id = parts[1] || ''; kind = 'embed'; }
+      else if (parts[0] === 'live') { id = parts[1] || ''; kind = 'live'; }
+      else if (parts[0] === 'v') { id = parts[1] || ''; kind = 'v'; }
+      else if (parts[0] === 'playlist') {
+        return { ok: false, reason: '재생목록 주소는 썸네일을 하나로 고를 수 없습니다. 영상 주소를 넣어 주세요.' };
+      }
+    } else {
+      return { ok: false, reason: '유튜브 주소가 아닙니다. (youtube.com · youtu.be)' };
+    }
+    if (!/^[A-Za-z0-9_-]{11}$/.test(id)) {
+      return { ok: false, reason: '영상 ID(11자리)를 찾지 못했습니다. 링크를 다시 확인하세요.' };
+    }
+    return {
+      ok: true, id: id, kind: kind,
+      normalized: 'https://www.youtube.com/watch?v=' + id,
+      embed: 'https://www.youtube.com/embed/' + id
+    };
+  }
+
+  /** 공식 썸네일 후보 — 화질 높은 순. maxres가 없으면 hq로 떨어진다. */
+  function youtubeThumbs(id) {
+    if (!/^[A-Za-z0-9_-]{11}$/.test(String(id || ''))) return [];
+    return [
+      { name: 'maxres', label: '고화질 1280×720', w: 1280, h: 720, url: 'https://i.ytimg.com/vi/' + id + '/maxresdefault.jpg' },
+      { name: 'sd', label: '표준 640×480', w: 640, h: 480, url: 'https://i.ytimg.com/vi/' + id + '/sddefault.jpg' },
+      { name: 'hq', label: '기본 480×360', w: 480, h: 360, url: 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg' },
+      { name: 'mq', label: '저화질 320×180', w: 320, h: 180, url: 'https://i.ytimg.com/vi/' + id + '/mqdefault.jpg' }
+    ];
+  }
+  function youtubeThumbUrl(id, name) {
+    var list = youtubeThumbs(id);
+    for (var i = 0; i < list.length; i++) if (list[i].name === name) return list[i].url;
+    return list.length ? list[0].url : '';
+  }
+
+  /* ── 색 양자화 ───────────────────────────────────── */
+  /** 5비트 버킷 → 비슷한 색 병합. 픽셀을 고르게 샘플링하므로 큰 이미지도 빠르다. */
+  function quantizeColors(rgba, w, h, opts) {
+    var o = opts || {};
+    var limit = o.limit || 14;
+    var step = Math.max(1, Math.round(Math.sqrt((w * h) / 26000)));
+    var map = Object.create(null);
+    var total = 0, x, y;
+    for (y = 0; y < h; y += step) {
+      for (x = 0; x < w; x += step) {
+        var i = (y * w + x) * 4;
+        if (rgba[i + 3] < 40) continue;
+        var r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
+        var key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+        var e = map[key];
+        if (!e) { e = map[key] = { sr: 0, sg: 0, sb: 0, n: 0 }; }
+        e.sr += r; e.sg += g; e.sb += b; e.n++;
+        total++;
+      }
+    }
+    var list = Object.keys(map).map(function (k) {
+      var e = map[k];
+      return { r: e.sr / e.n, g: e.sg / e.n, b: e.sb / e.n, n: e.n };
+    });
+    list.sort(function (a, b) { return b.n - a.n; });
+
+    var merged = [];
+    list.forEach(function (e) {
+      for (var i = 0; i < merged.length; i++) {
+        var m = merged[i];
+        if (distRgb(e, m) < 20) {
+          var n = m.n + e.n;
+          m.r = (m.r * m.n + e.r * e.n) / n;
+          m.g = (m.g * m.n + e.g * e.n) / n;
+          m.b = (m.b * m.n + e.b * e.n) / n;
+          m.n = n;
+          return;
+        }
+      }
+      merged.push({ r: e.r, g: e.g, b: e.b, n: e.n });
+    });
+    merged.sort(function (a, b) { return b.n - a.n; });
+
+    return merged.slice(0, limit).map(function (m) {
+      return {
+        hex: rgbToHex(m.r, m.g, m.b).toUpperCase(),
+        r: round(m.r, 1), g: round(m.g, 1), b: round(m.b, 1),
+        share: round(m.n / Math.max(1, total), 4),
+        luma: round(lumaOf(m.r, m.g, m.b), 4),
+        hsv: hsvOf(m.r, m.g, m.b)
+      };
+    });
+  }
+
+  /* ── 명암 지도 / 구조 판독 ───────────────────────── */
+  function lumaGrid(rgba, w, h, GW, GH) {
+    var grid = new Float32Array(GW * GH);
+    var counts = new Float32Array(GW * GH);
+    var step = Math.max(1, Math.round(Math.sqrt((w * h) / 32000)));
+    for (var y = 0; y < h; y += step) {
+      for (var x = 0; x < w; x += step) {
+        var i = (y * w + x) * 4;
+        if (rgba[i + 3] < 40) continue;
+        var gx = Math.min(GW - 1, Math.floor(x / w * GW));
+        var gy = Math.min(GH - 1, Math.floor(y / h * GH));
+        grid[gy * GW + gx] += lumaOf(rgba[i], rgba[i + 1], rgba[i + 2]);
+        counts[gy * GW + gx]++;
+      }
+    }
+    for (var k = 0; k < grid.length; k++) if (counts[k]) grid[k] /= counts[k];
+    return grid;
+  }
+
+  /** 이웃 밝기 차 = 디테일 에너지. 글자·피사체 경계가 많은 곳이 높다. */
+  function energyGrid(grid, GW, GH) {
+    var e = new Float32Array(GW * GH);
+    for (var y = 1; y < GH - 1; y++) {
+      for (var x = 1; x < GW - 1; x++) {
+        var i = y * GW + x;
+        var dx = Math.abs(grid[i + 1] - grid[i - 1]);
+        var dy = Math.abs(grid[i + GW] - grid[i - GW]);
+        e[i] = dx + dy;
+      }
+    }
+    return e;
+  }
+
+  function boxMean(grid, GW, GH, x0, x1, y0, y1) {
+    var sum = 0, n = 0;
+    var ax = Math.max(0, Math.floor(x0 * GW)), bx = Math.min(GW, Math.ceil(x1 * GW));
+    var ay = Math.max(0, Math.floor(y0 * GH)), by = Math.min(GH, Math.ceil(y1 * GH));
+    for (var y = ay; y < by; y++) {
+      for (var x = ax; x < bx; x++) { sum += grid[y * GW + x]; n++; }
+    }
+    return n ? sum / n : 0;
+  }
+
+  var STRUCTURES = {
+    left: { label: '좌측 텍스트 · 우측 피사체', align: 'left', text: { x: .06, y: .5, w: .52, h: .42 }, subject: { x: .54, y: .1, w: .4, h: .8 } },
+    right: { label: '우측 텍스트 · 좌측 피사체', align: 'left', text: { x: .44, y: .5, w: .5, h: .42 }, subject: { x: .06, y: .1, w: .4, h: .8 } },
+    center: { label: '중앙 집중형', align: 'center', text: { x: .1, y: .58, w: .8, h: .34 }, subject: { x: .22, y: .06, w: .56, h: .5 } },
+    'bottom-bar': { label: '하단 바 · 상단 이미지', align: 'left', text: { x: .06, y: .7, w: .88, h: .24 }, subject: { x: .2, y: .05, w: .6, h: .62 } },
+    split: { label: '상하 분할', align: 'left', text: { x: .07, y: .08, w: .86, h: .34 }, subject: { x: .22, y: .44, w: .56, h: .5 } },
+    grid: { label: '그리드 분산', align: 'left', text: { x: .07, y: .62, w: .46, h: .3 }, subject: { x: .55, y: .1, w: .38, h: .5 } }
+  };
+
+  /** 레이아웃 구조 판독 — 텍스트가 몰린 쪽(디테일 많은 쪽)을 찾는다. */
+  function referenceStructure(rgba, w, h) {
+    var GW = 48, GH = 48;
+    var g = lumaGrid(rgba, w, h, GW, GH);
+    var e = energyGrid(g, GW, GH);
+    var eL = boxMean(e, GW, GH, .03, .37, .08, .92);
+    var eM = boxMean(e, GW, GH, .35, .65, .08, .92);
+    var eR = boxMean(e, GW, GH, .63, .97, .08, .92);
+    var eBottom = boxMean(e, GW, GH, .04, .96, .79, .97);
+    var eUpper = boxMean(e, GW, GH, .04, .96, .1, .72);
+    var eMid = boxMean(e, GW, GH, .04, .96, .3, .7);
+    var eTop = boxMean(e, GW, GH, .04, .96, .03, .34);
+    var eLower = boxMean(e, GW, GH, .04, .96, .44, .8);
+    // 하단 띠가 화면 폭 전체에 걸쳐 있는지 — 한쪽에 몰린 글자는 띠가 아니다.
+    var bandThirds = [
+      boxMean(e, GW, GH, .04, .36, .79, .97),
+      boxMean(e, GW, GH, .36, .64, .79, .97),
+      boxMean(e, GW, GH, .64, .96, .79, .97)
+    ];
+    var bandCoverage = bandThirds.filter(function (v) { return v > eMid * 1.25; }).length;
+    var lBottom = boxMean(g, GW, GH, .04, .96, .79, .97);
+    var lUpper = boxMean(g, GW, GH, .04, .96, .1, .72);
+    var lTop = boxMean(g, GW, GH, .04, .96, .03, .34);
+    var lLower = boxMean(g, GW, GH, .04, .96, .44, .8);
+
+    var maxH = Math.max(eL, eM, eR, 1e-6);
+    var type = 'grid', conf = 0.42, why = '';
+
+    var bottomBar = (eBottom > eUpper * 1.2 && eBottom > eMid * 1.18) &&
+      ((Math.abs(lBottom - lUpper) > 0.06 && bandCoverage >= 2) || (bandCoverage >= 2 && eBottom > eMid * 1.6));
+    var split = (eTop > eLower * 1.22 && Math.abs(lTop - lLower) > 0.075) || eTop > eLower * 1.85;
+
+    if (bottomBar) {
+      type = 'bottom-bar';
+      conf = clamp(0.55 + (eBottom / (eUpper + 1e-6) - 1.2) * 0.35, 0.5, 0.96);
+      why = '하단 띠의 디테일·명암이 위쪽과 뚜렷하게 다릅니다';
+    } else if (split && eTop > eLower * 1.18) {
+      type = 'split';
+      conf = clamp(0.52 + (eTop / (eLower + 1e-6) - 1.2) * 0.35, 0.5, 0.95);
+      why = '위/아래 절반의 구성이 분리되어 있습니다';
+    } else if (eM > Math.max(eL, eR) * 1.22) {
+      type = 'center';
+      conf = clamp(0.5 + (eM / (Math.max(eL, eR) + 1e-6) - 1.2) * 0.4, 0.45, 0.95);
+      why = '가운데에 요소가 몰려 있습니다';
+    } else if (eL > eR * 1.18 || eR > eL * 1.18) {
+      type = eL > eR ? 'left' : 'right';
+      conf = clamp(0.5 + Math.abs(eL - eR) / (maxH + 1e-6) * 0.9, 0.45, 0.95);
+      why = (type === 'left' ? '왼쪽' : '오른쪽') + '에 텍스트·요소가 몰려 있습니다';
+    } else {
+      type = 'grid';
+      conf = 0.4;
+      why = '요소가 고르게 퍼져 있어 격자형으로 읽었습니다';
+    }
+    var s = STRUCTURES[type];
+    return {
+      type: type, label: s.label, align: s.align, why: why,
+      confidence: round(conf, 2),
+      text: s.text, subject: s.subject,
+      regions: {
+        left: round(eL, 3), center: round(eM, 3), right: round(eR, 3),
+        top: round(eTop, 3), bottom: round(eBottom, 3),
+        lumaTop: round(lTop, 3), lumaBottom: round(lBottom, 3)
+      }
+    };
+  }
+
+  /** 레퍼런스 이미지 픽셀 전체 분석. */
+  function analyzeReference(rgba, w, h, opts) {
+    var o = opts || {};
+    if (!rgba || !w || !h) throw new Error('분석할 이미지가 없습니다.');
+    var valid = validateReferenceImage(w, h);
+    if (!valid.ok) throw new Error(valid.reason);
+    var colors = quantizeColors(rgba, w, h, { limit: 14 });
+    if (!colors.length) throw new Error('이미지에서 색을 읽지 못했습니다.');
+
+    var edge = sampleEdgeColors(rgba, w, h);
+    var bg = edge.dominant || '#FFFFFF';
+    // 큰 어두운 면(다크 배경 + 밝은 피사체 블록)이 있으면 그쪽을 배경으로 본다.
+    var topColor = colors[0];
+    if (topColor && topColor.luma > 0.5) {
+      var darkMass = null;
+      colors.forEach(function (c) {
+        if (c.luma < 0.24 && c.share >= 0.28 && (!darkMass || c.share > darkMass.share)) darkMass = c;
+      });
+      if (darkMass) bg = darkMass.hex;
+    }
+    var bgLuma = lumaOfHex(bg);
+
+    var darkest = colors[0], lightest = colors[0];
+    colors.forEach(function (c) {
+      if (c.luma < darkest.luma) darkest = c;
+      if (c.luma > lightest.luma) lightest = c;
+    });
+    var ink = contrastRatio(bg, darkest.hex) >= contrastRatio(bg, lightest.hex) ? darkest.hex : lightest.hex;
+    if (contrastRatio(bg, ink) < 4.5) ink = bgLuma > 0.5 ? '#111111' : '#FFFFFF';
+
+    // 포인트색 — 배경·글자와 충분히 떨어진, 채도와 점유율이 높은 색
+    var accent = null, bestScore = 0;
+    colors.forEach(function (c) {
+      if (c.hsv.s < 0.16 || c.share < 0.002) return;
+      if (distRgb({ r: c.r, g: c.g, b: c.b }, hexToRgb(bg)) < 32) return;
+      if (distRgb({ r: c.r, g: c.g, b: c.b }, hexToRgb(ink)) < 42) return;
+      var score = Math.pow(c.hsv.s, 1.1) * (0.4 + Math.sqrt(c.share)) * (0.55 + c.hsv.v * 0.7);
+      if (score > bestScore) { bestScore = score; accent = c; }
+    });
+    var accentHex = accent ? accent.hex : ink;
+
+    var surface = bgLuma > 0.5 ? mixHex(bg, '#FFFFFF', 0.66) : mixHex(bg, '#FFFFFF', 0.1);
+    var sub = mixHex(ink, bg, contrastRatio(bg, mixHex(ink, bg, 0.18)) >= 2.8 ? 0.36 : 0.16);
+    if (contrastRatio(bg, sub) < 2.8) sub = mixHex(ink, bg, 0.12);
+    var line = mixHex(bg, ink, 0.22);
+    var palette = {
+      bg: bg, surface: surface, ink: ink, sub: sub, line: line,
+      accent: accentHex, accentSoft: mixHex(bg, accentHex, 0.16)
+    };
+
+    // 톤 — 밝기·대비·채도·색온도
+    var sumL = 0, sumS = 0, sumN = 0, cosH = 0, sinH = 0, maxS = 0;
+    colors.forEach(function (c) {
+      sumL += c.luma * c.share;
+      sumS += c.hsv.s * c.share;
+      sumN += c.share;
+      maxS = Math.max(maxS, c.hsv.s);
+      if (c.hsv.s > 0.12) {
+        cosH += Math.cos(c.hsv.h * Math.PI / 180) * c.hsv.s * c.share;
+        sinH += Math.sin(c.hsv.h * Math.PI / 180) * c.hsv.s * c.share;
+      }
+    });
+    var meanLuma = sumN ? sumL / sumN : bgLuma;
+    var meanSat = sumN ? sumS / sumN : 0;
+    var hue = (Math.atan2(sinH, cosH) * 180 / Math.PI + 360) % 360;
+    var lumas = colors.map(function (c) { return c.luma; }).sort(function (a, b) { return a - b; });
+    var p05 = lumas[Math.floor((lumas.length - 1) * 0.05)];
+    var p95 = lumas[Math.ceil((lumas.length - 1) * 0.95)];
+    var contrastSpan = Math.abs((p95 == null ? meanLuma : p95) - (p05 == null ? meanLuma : p05));
+    var scheme = bgLuma < 0.42 ? 'dark' : 'light';
+    var accentHsv = hsvOfHex(accentHex);
+    var mood;
+    if (maxS < 0.14) mood = 'mono';
+    else if (meanSat > 0.45 && maxS > 0.62) mood = 'vivid';
+    else if (meanLuma < 0.32) mood = 'dark';
+    else if (meanLuma > 0.72 && meanSat < 0.24) mood = 'clean';
+    else mood = 'balanced';
+    var temperature = 'neutral';
+    if (meanSat > 0.08) temperature = (hue < 70 || hue > 320) ? 'warm' : (hue > 150 && hue < 290 ? 'cool' : 'warm');
+    var toneLabel = { mono: '모노', vivid: '비비드', dark: '다크', clean: '클린', balanced: '밸런스' }[mood] +
+      ' · ' + (scheme === 'dark' ? '어두운' : '밝은') + ' 톤';
+
+    var structure = referenceStructure(rgba, w, h);
+
+    var matched = referenceToTheme({ palette: palette, tone: { scheme: scheme, mood: mood, saturation: meanSat, luma: meanLuma, hue: hue }, structure: structure });
+
+    return {
+      size: { w: w, h: h, ratio: round(w / h, 3) },
+      palette: palette,
+      colors: colors.slice(0, 6),
+      tone: {
+        luma: round(bgLuma, 3), meanLuma: round(meanLuma, 3), contrast: round(contrastSpan, 3),
+        saturation: round(meanSat, 3), maxSaturation: round(maxS, 3),
+        hue: round(hue, 1), accentHue: accentHsv.h, accentSaturation: accentHsv.s,
+        temperature: temperature, scheme: scheme, mood: mood, label: toneLabel
+      },
+      structure: structure,
+      theme: matched.theme,
+      matchScore: matched.score,
+      source: o.source || { type: 'image' }
+    };
+  }
+
+  /** 분석값에 가장 가까운 테마 — 다크/라이트·채도·색상·정렬을 가중 합산. */
+  function referenceToTheme(a) {
+    var tone = a.tone || {}, st = a.structure || STRUCTURES.left;
+    var hueRef = tone.accentHue == null ? (tone.hue || 0) : tone.accentHue;
+    var satRef = tone.accentSaturation == null ? (tone.saturation || 0) : tone.accentSaturation;
+    var bgHsvRef = hsvOfHex((a.palette && a.palette.bg) || '#FFFFFF');
+    var bgSatRef = bgHsvRef.s, bgHueRef = bgHsvRef.h;
+    var lists = [];
+    THEMES.forEach(function (t) {
+      var tLuma = lumaOfHex(t.palette.bg);
+      var accentHsv = hsvOfHex(t.palette.accent);
+      var bgHsv = hsvOfHex(t.palette.bg);
+      var score = 0;
+      score += (!!t.dark === (tone.scheme === 'dark')) ? 2.4 : 0;
+      score += 1.7 * (1 - Math.min(1, Math.abs(tLuma - (tone.luma == null ? 0.5 : tone.luma)) * 1.6));
+      score += 1.6 * (1 - Math.min(1, Math.abs(accentHsv.s - satRef) * 1.3));
+      if (satRef > 0.14 && accentHsv.s > 0.12) {
+        score += 2.2 * (1 - hueDistance(accentHsv.h, hueRef) / 180);
+      }
+      score += 1.8 * (1 - Math.min(1, Math.abs(bgHsv.s - bgSatRef) * 1.6));
+      if (bgSatRef > 0.12) {
+        score += 1.2 * (1 - hueDistance(bgHsv.h, bgHueRef) / 180);
+      }
+      if (tone.mood === 'mono' && accentHsv.s < 0.18) score += 1.4;
+      if (tone.mood === 'vivid' && accentHsv.s > 0.55) score += 1.2;
+      if (t.layout.align === st.align) score += 1.0;
+      lists.push({ theme: t, score: score });
+    });
+    lists.sort(function (x, y) { return y.score - x.score; });
+    var top = lists[0];
+    return { theme: top.theme, score: clamp(Math.round(top.score / 10.4 * 100), 1, 99), runners: lists.slice(1, 4).map(function (r) { return r.theme.id; }) };
+  }
+
+  /** 프롬프트에 넣을 영어 아트디렉션 힌트. */
+  function referenceHints(a) {
+    if (!a || !a.palette) return '';
+    var pal = a.palette, tone = a.tone || {}, st = a.structure || {};
+    var comp = {
+      left: 'subject weighted to the right, calm negative space on the left for the headline',
+      right: 'subject weighted to the left, calm negative space on the right for the headline',
+      center: 'centered subject with symmetrical calm margins for a centered headline',
+      'bottom-bar': 'subject in the upper area, a calm horizontal band along the bottom for the headline',
+      split: 'a clean horizontal split — visual weight on the bottom, headline band on top',
+      grid: 'a modular composition with even calm blocks for text'
+    }[st.type] || 'clean composition with clear negative space';
+    var treat = (tone.saturation || 0) > 0.4 ? 'saturated, high-energy color' : ((tone.mood === 'mono') ? 'near-monochrome, tonal' : 'muted, low-saturation color');
+    return (tone.scheme === 'dark' ? 'dark' : 'light') + ' ' + treat + ' palette built on ' + pal.bg +
+      ' with ' + pal.accent + ' accent and ' + pal.ink + ' type; ' + comp + '; echo the reference grain and contrast, ' +
+      'but keep the plate free of any text or logos.';
+  }
+
+  function referenceSummary(a) {
+    if (!a) return '';
+    var st = a.structure || {};
+    return (a.tone ? a.tone.label : '톤 미상') + ' · ' + (st.label || '구조 미상') +
+      ' · 신뢰도 ' + Math.round((st.confidence || 0) * 100) + '% · 테마 ' + (a.theme ? a.theme.short : '-');
+  }
+
+  function hashString(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(36);
+  }
+
+  var BRAND_PRESET_LIMIT = 8;
+
+  /** 분석값 → 저장 가능한 "내 브랜드 프리셋". */
+  function buildBrandPreset(a, meta) {
+    var m = meta || {};
+    if (!a || !a.palette) throw new Error('분석 결과가 필요합니다.');
+    var name = String(m.name || '').trim() || ('레퍼런스 ' + (a.theme ? a.theme.short : '스타일'));
+    var hints = referenceHints(a);
+    var preset = {
+      v: 1,
+      id: 'ref-' + hashString(name + a.palette.bg + a.palette.accent + hints),
+      name: name,
+      at: m.at || Date.now(),
+      source: a.source || { type: 'image' },
+      theme: a.theme ? a.theme.id : 'editorial',
+      palette: {
+        bg: a.palette.bg, surface: a.palette.surface, ink: a.palette.ink,
+        sub: a.palette.sub, line: a.palette.line, accent: a.palette.accent, accentSoft: a.palette.accentSoft
+      },
+      tone: a.tone,
+      structure: {
+        type: a.structure.type, label: a.structure.label, align: a.structure.align,
+        confidence: a.structure.confidence, text: a.structure.text, subject: a.structure.subject
+      },
+      hints: hints,
+      thumb: m.thumb || ''
+    };
+    return preset;
+  }
+
+  /** 프리셋을 현재 캔버스에 적용할 상태 조각. */
+  function presetToState(preset) {
+    if (!preset || !preset.palette) return null;
+    return {
+      theme: preset.theme,
+      bgColor: preset.palette.bg,
+      accentColor: preset.palette.accent,
+      refPalette: {
+        bg: preset.palette.bg, surface: preset.palette.surface, ink: preset.palette.ink,
+        sub: preset.palette.sub, line: preset.palette.line,
+        accent: preset.palette.accent, accentSoft: preset.palette.accentSoft
+      },
+      align: preset.structure ? preset.structure.align : 'left',
+      refLayout: preset.structure ? {
+        on: true,
+        type: preset.structure.type,
+        align: preset.structure.align,
+        text: preset.structure.text,
+        subject: preset.structure.subject
+      } : null,
+      refHints: preset.hints || ''
+    };
+  }
+
+  function validateReferenceImage(w, h) {
+    if (!w || !h) return { ok: false, reason: '이미지 크기를 읽지 못했습니다.' };
+    if (w < 80 || h < 60) return { ok: false, reason: '이미지가 너무 작습니다(최소 80×60). 캡처를 다시 해 주세요.' };
+    if (w * h > 24e6) return { ok: false, reason: '이미지가 너무 큽니다(2400만 픽셀 이하). 캡처를 줄여 주세요.' };
+    return { ok: true };
+  }
+
+  /** 레퍼런스 팔레트를 테마 팔레트에 덮어쓴 사본 — 분석 없이 색만 옮길 때. */
+  function paletteWithReference(theme, referencePalette) {
+    var out = clone(theme);
+    if (!referencePalette) return out;
+    ['bg', 'surface', 'ink', 'sub', 'line', 'accent', 'accentSoft'].forEach(function (k) {
+      if (referencePalette[k]) out.palette[k] = String(referencePalette[k]).toUpperCase();
+    });
+    return out;
   }
 
   /* ── 배경 투명화 ───────────────────────────────────── */
@@ -595,11 +1432,17 @@
       ? 'Keep the central lower third calm and uncluttered for a Korean headline overlay.'
       : 'Leave the ' + side + ' third of the frame as calm negative space for a Korean headline overlay.';
     var extra = String(p.extra || '').trim();
+    var refHints = '';
+    if (p.reference) {
+      refHints = typeof p.reference === 'string' ? p.reference : referenceHints(p.reference);
+      refHints = String(refHints || '').trim();
+    }
 
     var prompt = style.en + ' for a ' + (p.platform || 'social media') + ' thumbnail about "' + topic + '". ' +
       'Scene: a single clear subject that instantly reads at small size, ' + mood.en + ' atmosphere, ' + light.en + ', ' + style.hints + '. ' +
       space + ' Strong figure-ground separation, uncluttered composition, high detail, professional art direction, ' +
       ratio + ' aspect ratio.' + (extra ? ' Extra direction: ' + extra.replace(/\s+/g, ' ').trim() + '.' : '') +
+      (refHints ? ' Benchmarked from the user reference: ' + refHints : '') +
       ' The image is a background plate only — absolutely no text, letters, numbers, logos or watermarks anywhere.';
 
     return {
@@ -607,7 +1450,9 @@
       negative: NEGATIVE_BASE + (p.negative ? ', ' + p.negative : ''),
       aspect: ratio,
       style: style.id, mood: mood.id, lighting: light.id,
+      reference: refHints,
       ko: style.name + ' · ' + mood.name + ' · ' + light.name + ' / ' + ratio
+        + (refHints ? ' · 레퍼런스 반영' : '')
     };
   }
 
@@ -928,9 +1773,18 @@
   }
 
   return {
-    VERSION: '1.0.0',
-    RATIOS: RATIOS, THEMES: THEMES, STYLES: STYLES, MOODS: MOODS, LIGHTS: LIGHTS, PROVIDERS: PROVIDERS,
-    ratioById: ratioById, themeById: themeById, providerById: providerById,
+    VERSION: '2.0.0',
+    RATIOS: RATIOS, THEMES: THEMES, THEME_CATEGORIES: THEME_CATEGORIES,
+    STYLES: STYLES, MOODS: MOODS, LIGHTS: LIGHTS, PROVIDERS: PROVIDERS,
+    ratioById: ratioById, themeById: themeById, themesByCategory: themesByCategory,
+    themeCategoryName: themeCategoryName, providerById: providerById,
+    parseYouTubeUrl: parseYouTubeUrl, youtubeThumbs: youtubeThumbs, youtubeThumbUrl: youtubeThumbUrl,
+    quantizeColors: quantizeColors, lumaOf: lumaOf, lumaOfHex: lumaOfHex, hsvOf: hsvOf, hsvOfHex: hsvOfHex,
+    analyzeReference: analyzeReference, referenceStructure: referenceStructure, referenceToTheme: referenceToTheme,
+    referenceHints: referenceHints, referenceSummary: referenceSummary,
+    buildBrandPreset: buildBrandPreset, presetToState: presetToState,
+    validateReferenceImage: validateReferenceImage, paletteWithReference: paletteWithReference,
+    STRUCTURES: STRUCTURES, BRAND_PRESET_LIMIT: BRAND_PRESET_LIMIT,
     clamp: clamp, round: round, isHex: isHex, hexToRgb: hexToRgb, rgbToHex: rgbToHex, mixHex: mixHex,
     relativeLuminance: relativeLuminance, contrastRatio: contrastRatio, readableInk: readableInk,
     slugify: slugify, formatBytes: formatBytes, clone: clone,
