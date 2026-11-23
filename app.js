@@ -635,13 +635,13 @@
       g.addColorStop(0, C.mixHex(pal.bg, '#FFFFFF', 0.55));
       g.addColorStop(1, pal.bg);
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      var dg = ctx.createLinearGradient(W * 0.55, 0, W, H);
-      dg.addColorStop(0, alphaColor(pal.accent, 0.16));
-      dg.addColorStop(1, alphaColor('#FF8A00', 0.5 + t * 0.2));
+      var dg = ctx.createLinearGradient(W * 0.62, 0, W, H);
+      dg.addColorStop(0, alphaColor(pal.accent, 0.10));
+      dg.addColorStop(1, alphaColor('#FF8A00', 0.42 + t * 0.18));
       ctx.save();
-      ctx.translate(W * 0.5, H * 0.5); ctx.rotate(-0.35);
+      ctx.translate(W * 0.7, H * 0.5); ctx.rotate(-0.3);
       ctx.fillStyle = dg;
-      ctx.fillRect(-W * 0.12, -H * 0.9, W * 0.62, H * 1.8);
+      ctx.fillRect(-W * 0.06, -H * 0.85, W * 0.42, H * 1.7);
       ctx.restore();
     }
   };
@@ -907,14 +907,17 @@
         }
         case 'gradient': {
           var from = pickColor(L.from || 'accent', pal), to = pickColor(L.to || 'surface', pal);
-          var g = ctx.createLinearGradient(x, y, x + w, y + h);
+          var ang = L.angle || 0;
+          var dx = Math.cos(ang) * w, dy = Math.sin(ang) * h;
+          var g = ctx.createLinearGradient(x + (w - dx) / 2, y + (h - dy) / 2, x + (w + dx) / 2, y + (h + dy) / 2);
           g.addColorStop(0, alphaColor(from, alpha));
           g.addColorStop(1, alphaColor(to, alpha));
           ctx.fillStyle = g;
           ctx.save();
-          ctx.translate(x + w / 2, y + h / 2);
-          ctx.rotate(L.angle || 0);
-          ctx.fillRect(-w * 1.2, -h / 2, w * 2.4, h);
+          ctx.beginPath();
+          ctx.rect(x, y, w, h);
+          ctx.clip();
+          ctx.fillRect(x, y, w, h);
           ctx.restore();
           break;
         }
@@ -2188,7 +2191,8 @@
       { k: '글자', v: a.palette.ink }, { k: '보조', v: a.palette.sub }
     ];
     el.refSwatches.innerHTML = sw.map(function (s) {
-      return '<span class="ref-swatch"><i style="background:' + s.v + '"></i><em>' + s.k + '</em></span>';
+      return '<span class="ref-swatch" title="' + s.k + ' ' + s.v + '"><i style="background:' + s.v + '"></i>' +
+        '<em>' + s.k + '</em></span>';
     }).join('');
     el.refMeta.innerHTML =
       '<div><b>톤</b> ' + escapeHtml(a.tone.label) + ' · 채도 ' + Math.round(a.tone.saturation * 100) + '%</div>' +

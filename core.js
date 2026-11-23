@@ -162,11 +162,11 @@
       dark: false, texture: 'poster',
       palette: { bg: '#F7F4EE', surface: '#FFFFFF', ink: '#0F0E0C', sub: '#57534B', line: '#DAD4C8', accent: '#E03A16', accentSoft: '#FBE0D8' },
       layout: { align: 'left', text: { x: .06, y: .44, w: .56, h: .52 }, subject: { x: .64, y: .07, w: .34, h: .44 }, badge: 'box' },
-      titleWeight: 900, titleTracking: -0.045, lineHeight: 0.94, kicker: 'TYPE POSTER',
+      titleWeight: 900, titleTracking: -0.045, lineHeight: 1.0, kicker: 'TYPE POSTER',
       kickerStyle: 'mono',
       frame: { kind: 'none' },
       deco: [
-        { kind: 'number', text: '01', x: .97, y: .34, size: .38, color: 'line', alpha: .5, align: 'right' },
+        { kind: 'number', text: '01', x: .97, y: .72, size: .24, color: 'line', alpha: .38, align: 'right' },
         { kind: 'label', text: 'TYPE POSTER / 2026', x: .06, y: .05, size: .0118, color: 'sub', tracking: .3 },
         { kind: 'rule', x: .06, y: .4, w: .26, h: .005, color: 'accent' },
         { kind: 'rule', x: .06, y: .965, w: .88, h: .0014, color: 'line' }
@@ -175,7 +175,7 @@
       preview: { shape: 'left', accentBar: 'top' }
     },
     {
-      id: 'monochrome', name: '모노크롬', short: '모노', tag: '흑백 · 하이라인',
+      id: 'monochrome', name: '모노크롬', short: '모노', tag: '흑백 · 얇은 선',
       cat: 'editorial',
       dark: false, texture: 'mono',
       palette: { bg: '#EDEDEA', surface: '#FFFFFF', ink: '#0D0D0D', sub: '#4F4F4F', line: '#CFCFC9', accent: '#262626', accentSoft: '#DEDED8' },
@@ -226,7 +226,7 @@
       preview: { shape: 'left', accentBar: 'bottom', dark: true }
     },
     {
-      id: 'cyber', name: '사이버 HUD', short: '사이버', tag: '스캔 · 모 노 · 브래킷',
+      id: 'cyber', name: '사이버 HUD', short: '사이버', tag: '스캔 · 모노 · 브래킷',
       cat: 'media',
       dark: true, texture: 'scan',
       palette: { bg: '#050A12', surface: '#0B1520', ink: '#E6F7FF', sub: '#8FA9BF', line: '#1B3346', accent: '#38F2C0', accentSoft: '#0C2A28' },
@@ -322,7 +322,7 @@
       ref: 'neo-brutalism', dark: false, texture: 'brutal',
       palette: { bg: '#FFFDF2', surface: '#FFFFFF', ink: '#000000', sub: '#474747', line: '#000000', accent: '#C6F432', accentSoft: '#EEFBC0' },
       layout: { align: 'left', text: { x: .06, y: .55, w: .7, h: .38 }, subject: { x: .29, y: .05, w: .44, h: .42 }, badge: 'sticker' },
-      titleWeight: 900, titleTracking: -0.04, lineHeight: 0.98, kicker: 'NO.01',
+      titleWeight: 900, titleTracking: -0.04, lineHeight: 1.0, kicker: 'NO.01',
       kickerStyle: 'box',
       frame: { kind: 'offset', pad: .018, border: .0045, offset: .012, fill: '#FFFFFF' },
       deco: [
@@ -464,11 +464,11 @@
       dark: false, texture: 'gradient',
       palette: { bg: '#FFF3EC', surface: '#FFFFFF', ink: '#1B0E08', sub: '#5C4033', line: '#F0D6C6', accent: '#E8340C', accentSoft: '#FFE1D6' },
       layout: { align: 'left', text: { x: .06, y: .14, w: .5, h: .42 }, subject: { x: .56, y: .34, w: .42, h: .6 }, badge: 'sticker' },
-      titleWeight: 900, titleTracking: -0.04, lineHeight: 0.98, kicker: 'LIMITED',
+      titleWeight: 900, titleTracking: -0.04, lineHeight: 1.02, kicker: 'LIMITED',
       kickerStyle: 'box',
       frame: { kind: 'none' },
       deco: [
-        { kind: 'gradient', x: .62, y: 0, w: .38, h: 1, from: 'accent', to: '#FF8A00', alpha: .92, angle: -0.35 },
+        { kind: 'gradient', x: .72, y: 0, w: .28, h: 1, from: 'accent', to: '#FF8A00', alpha: .92, angle: -0.35 },
         { kind: 'circle', cx: .855, cy: .15, r: .075, color: '#FFFFFF', alpha: .95, fill: true },
         { kind: 'label', text: 'SALE', x: .855, y: .141, size: .023, color: 'accent', tracking: .02, align: 'center', weight: 900 },
         { kind: 'label', text: 'LIMITED / TODAY', x: .06, y: .07, size: .0118, color: 'sub', tracking: .24 }
@@ -1222,6 +1222,8 @@
     return out.length ? out : [{ t: '', em: false }];
   }
 
+  var NO_LINE_START = /^[,.!?:;)\]}》」』】、。·…%]$/;
+
   /** 한글은 글자 단위, 영문·숫자는 단어 단위로 끊는 세그먼트. */
   function toSegments(tokens) {
     // 숫자+한글 단위(3만원대, 12개, 2주)와 영문 단어는 한 덩어리로 끊는다.
@@ -1267,6 +1269,12 @@
       if (cur + w > maxW && cur > 0) {
         // 공백이면 버리고 줄바꿈
         if (seg.t === ' ') { newLine(); return; }
+        // 줄머리에 올 수 없는 문장부호는 앞 줄에 붙인다(한국어 조판).
+        if (NO_LINE_START.test(seg.t)) {
+          lines[lines.length - 1].push({ t: seg.t, em: seg.em, w: w });
+          cur += w;
+          return;
+        }
         newLine();
       }
       if (w > maxW) {
@@ -1296,6 +1304,25 @@
 
   function fontString(size, weight, family) {
     return (weight || 700) + ' ' + size + 'px ' + (family || '"PlexKR", "Apple SD Gothic Neo", sans-serif');
+  }
+
+  /** 마지막 줄에 한 글자만 남는 '고아 줄'을 앞 줄에서 한 글자 내려와 푼다. */
+  function balanceLastLine(ctx, lines, size) {
+    if (lines.length < 2) return lines;
+    var last = lines[lines.length - 1];
+    var prev = lines[lines.length - 2];
+    var lastW = 0;
+    for (var i = 0; i < last.length; i++) lastW += last[i].w;
+    if (lastW > size * 1.15 || last.length > 2) return lines;
+    if (prev.length < 2) return lines;
+    var idx = prev.length - 1;
+    while (idx >= 0 && prev[idx].t === ' ') idx--;
+    if (idx < 1) return lines;
+    var moved = prev[idx];
+    if (NO_LINE_START.test(moved.t)) return lines;
+    prev.splice(idx, 1);
+    last.unshift({ t: moved.t, em: moved.em, w: ctx.measureText(moved.t).width });
+    return lines;
   }
 
   /**
@@ -1329,6 +1356,7 @@
         var w = 0; l.forEach(function (s) { w += s.w; });
         if (w > widest) widest = w;
       });
+      lines = balanceLastLine(ctx, lines, size);
       best = { size: size, lines: lines, height: textH, width: widest, lineHeight: size * lh };
       if (lines.length <= maxLines && textH <= maxH && widest <= maxW + 0.5) break;
       if (size === minSize) {
