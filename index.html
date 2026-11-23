@@ -278,6 +278,19 @@
               </label>
             </div>
             <p class="hint" id="cutStats">테두리 색을 읽어 배경을 지웁니다. 남는 부분은 허용 오차를 올리세요.</p>
+
+            <div class="ai-cut" id="aiCutBox">
+              <div class="ai-cut-head">
+                <b>AI 누끼</b>
+                <span class="hint" id="aiCutState">사람·사물을 인식해 배경을 지웁니다 · 사진은 전송되지 않습니다</span>
+              </div>
+              <div class="btn-row">
+                <button type="button" class="btn btn-ghost" id="aiCutPerson">인물 누끼 (AI)</button>
+                <button type="button" class="btn btn-ghost" id="aiCutObject">사물 누끼 (AI)</button>
+              </div>
+              <p class="hint" id="aiCutNote">처음 누를 때만 인식 엔진(약 15MB)을 이 브라우저로 받습니다. 실패하면 위 색상 방식으로 그대로 돌아갑니다.</p>
+            </div>
+
             <div class="btn-row">
               <button type="button" class="btn btn-ghost" id="cutPreview">원본/누끼 비교</button>
               <button type="button" class="btn btn-ghost" id="bgFromPhoto">사진을 배경으로</button>
@@ -432,10 +445,14 @@
             <span class="spinner" aria-hidden="true"></span>
             <span id="generateLabel">AI 배경 생성</span>
           </button>
+          <button type="button" class="btn btn-ghost" id="freePrompt">무료 AI로 프롬프트 다듬기</button>
+          <span class="freeai-slot" id="freeBadge"></span>
           <button type="button" class="btn btn-ghost" id="sampleGenerate">키 없이 샘플로 체험</button>
           <button type="button" class="btn btn-ghost" id="cancelBtn" hidden>취소</button>
           <span class="run-status" id="runStatus" role="status" aria-live="polite">대기 중</span>
         </div>
+        <div id="freeUpgrade" class="free-upgrade-slot"></div>
+        <p class="hint" id="freePromptState" hidden></p>
         <ol class="run-steps" id="runSteps" hidden></ol>
         <div class="result-strip" id="resultStrip" hidden></div>
       </section>
@@ -590,6 +607,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="engines/design-ref-engine.js"></script>
+<script src="engines/free-ai.js"></script>
 <script src="engines/copy-psych-engine.js"></script>
 <script src="core.js"></script>
 <script src="app.js"></script>

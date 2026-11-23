@@ -1525,7 +1525,10 @@
       if (s) {
         var pct = Math.round(s.transparentRatio * 100);
         var edge = photo.edge && photo.edge.colors && photo.edge.colors[0] ? photo.edge.colors[0].hex : '—';
-        el.cutStats.textContent = '배경 ' + pct + '% 제거 · 가장자리 색 ' + edge + (s.softRatio > 0.02 ? ' · 경계 ' + Math.round(s.softRatio * 100) + '%' : '');
+        var aiTag = photo.cutSource && photo.cutSource.indexOf('ai-') === 0
+          ? (photo.cutSource === 'ai-person' ? ' · AI 인물 누끼' : ' · AI 사물 누끼')
+          : '';
+        el.cutStats.textContent = '배경 ' + pct + '% 제거 · 가장자리 색 ' + edge + (s.softRatio > 0.02 ? ' · 경계 ' + Math.round(s.softRatio * 100) + '%' : '') + aiTag;
       } else {
         el.cutStats.textContent = '테두리 색을 읽어 배경을 지웁니다. 남는 부분은 허용 오차를 올리세요.';
       }
@@ -1552,6 +1555,147 @@
     minX = Math.max(0, minX - padX); minY = Math.max(0, minY - padY);
     maxX = Math.min(w - 1, maxX + padX); maxY = Math.min(h - 1, maxY + padY);
     return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+  }
+
+  /* ══════════════════════════════════════════════════
+     AI 누끼 (MediaPipe Tasks Vision · Apache-2.0)
+     --------------------------------------------------
+     색상 키잉은 사람 머리카락·복잡한 배경에서 원리적으로 안 된다.
+     인물/사물 세그멘테이션 모델을 **버튼을 눌렀을 때만** 받아
+     (첫 화면 용량 0 증가) 마스크를 알파로 바꾼다.
+     엔진·모델은 이 저장소에 들어 있어 사진이 밖으로 나가지 않고,
+     로컬 파일이 없으면 같은 버전 CDN 을 한 번 시도한 뒤
+     그래도 실패하면 기존 색상 키잉으로 조용히 돌아간다. */
+  var AI_CUT = {
+    version: 'mediapipe-tasks-vision-1.2.3',
+    localBase: './assets/vendor/mediapipe/',
+    cdnBase: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/',
+    modelBase: './assets/vendor/mediapipe/',
+    models: {
+      person: 'selfie_segmenter.tflite',
+      object: 'deeplab_v3.tflite'
+    },
+    module: null,
+    fileset: null,
+    seg: {},
+    busy: false,
+    base: ''
+  };
+
+  function aiState(text, mode) {
+    var el = $('#aiCutState');
+    var box = $('#aiCutBox');
+    if (el && text) el.textContent = text;
+    if (box) {
+      box.setAttribute('data-state', mode || '');
+      box.classList.toggle('is-busy', mode === 'busy');
+    }
+  }
+
+  function loadAiModule() {
+    if (AI_CUT.module) return Promise.resolve(AI_CUT.module);
+    function attempt(base) {
+      return import(base + 'vision_bundle.mjs').then(function (mod) {
+        AI_CUT.base = base;
+        AI_CUT.module = mod;
+        return mod;
+      });
+    }
+    return attempt(AI_CUT.localBase).catch(function () {
+      return attempt(AI_CUT.cdnBase);
+    });
+  }
+
+  function ensureSegmenter(kind) {
+    if (AI_CUT.seg[kind]) return Promise.resolve(AI_CUT.seg[kind]);
+    return loadAiModule().then(function (mod) {
+      var filesetP = AI_CUT.fileset
+        ? Promise.resolve(AI_CUT.fileset)
+        : mod.FilesetResolver.forVisionTasks(AI_CUT.base + 'wasm').then(function (fs) {
+          AI_CUT.fileset = fs;
+          return fs;
+        });
+      return filesetP.then(function (fileset) {
+        return mod.ImageSegmenter.createFromOptions(fileset, {
+          baseOptions: {
+            modelAssetPath: AI_CUT.modelBase + AI_CUT.models[kind],
+            delegate: 'CPU'
+          },
+          runningMode: 'IMAGE',
+          outputCategoryMask: kind === 'object',
+          outputConfidenceMasks: kind !== 'object'
+        });
+      }).then(function (seg) {
+        AI_CUT.seg[kind] = seg;
+        return seg;
+      });
+    });
+  }
+
+  function aiMaskFromResult(kind, res) {
+    if (kind === 'object') {
+      var cat = res && res.categoryMask;
+      if (!cat) return null;
+      return { data: cat.getAsUint8Array(), w: cat.width, h: cat.height, kind: 'category' };
+    }
+    var conf = res && res.confidenceMasks;
+    if (!conf || !conf.length) return null;
+    var m = conf[0];
+    return { data: m.getAsFloat32Array(), w: m.width, h: m.height, kind: 'confidence' };
+  }
+
+  function runAiCut(kind) {
+    if (!photo.canvas) { toast('사진을 먼저 넣어 주세요.'); return; }
+    if (AI_CUT.busy) return;
+    AI_CUT.busy = true;
+    var label = kind === 'object' ? '사물' : '인물';
+    aiState('AI가 ' + label + '을 찾는 중… 처음 한 번은 엔진을 받느라 조금 걸립니다.', 'busy');
+    var w = photo.canvas.width, h = photo.canvas.height;
+    var src = photo.canvas.getContext('2d').getImageData(0, 0, w, h);
+
+    ensureSegmenter(kind).then(function (seg) {
+      var res = seg.segment(photo.canvas);
+      var mask = aiMaskFromResult(kind, res);
+      if (!mask || !mask.w || !mask.h) throw new Error('마스크 없음');
+      var alpha = C.maskToAlpha(mask.data, mask.w, mask.h, w, h, {
+        kind: mask.kind,
+        lo: kind === 'object' ? 0.5 : 0.38,
+        hi: kind === 'object' ? 0.55 : 0.68,
+        feather: state.subject.feather == null ? 3 : state.subject.feather
+      });
+      var applied = C.applyAlpha(src.data, alpha, w, h);
+      if (applied.stats.keptRatio + applied.stats.softRatio < 0.008) {
+        throw new Error('피사체를 찾지 못함');
+      }
+      var full = makeCanvas(w, h);
+      full.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(applied.data), w, h), 0, 0);
+      var box = alphaBounds(applied.alpha, w, h, 0.06);
+      var cut;
+      if (box && box.w * box.h < w * h * 0.995) {
+        cut = makeCanvas(box.w, box.h);
+        cut.getContext('2d').drawImage(full, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+      } else {
+        cut = full;
+      }
+      photo.cut = cut;
+      photo.cutBox = box;
+      photo.stats = applied.stats;
+      photo.cutSource = 'ai-' + kind;
+      photo.aiKind = kind;
+      refreshPhotoUI();
+      render();
+      var pct = Math.round(applied.stats.transparentRatio * 100);
+      aiState('AI ' + label + ' 누끼 완료 · 배경 ' + pct + '% 제거', 'ok');
+      toast('AI ' + label + ' 누끼로 배경을 지웠습니다. 남는 부분은 [가장자리 부드럽게]로 다듬으세요.');
+    }).catch(function (err) {
+      aiState('AI 엔진을 쓰지 못해 색상 방식으로 돌아갑니다.', 'error');
+      toast('AI 누끼를 쓰지 못했습니다. 색상 방식으로 처리합니다.');
+      photo.cutSource = '';
+      processCut(true);
+      if (window.console && err) console.warn('[ai-cut]', err && err.message ? err.message : err);
+    }).then(function () {
+      AI_CUT.busy = false;
+    });
   }
 
   var processCut = debounce(function (immediate) {
@@ -1749,6 +1893,80 @@
     });
     lastBuiltPrompt = built;
     return built;
+  }
+
+  /* ── 무료 AI 맛보기 (free-ai.js) ────────────────────────
+     무료 체험 서버는 글만 만들 수 있다. 그래서 "그림"이 아니라
+     이미지 AI에 넣을 **영문 프롬프트**를 다듬어 준다. */
+  var FREE = window.FreeAI || null;
+
+  function freePromptState(text, kind) {
+    var el = $('#freePromptState');
+    if (!el) return;
+    if (!text) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false;
+    el.textContent = text;
+    el.setAttribute('data-kind', kind || '');
+  }
+
+  function freePromptRequest() {
+    var built = buildPrompt();
+    var lines = [];
+    lines.push('[제목] ' + (state.title || '없음'));
+    if (state.topic) lines.push('[주제] ' + state.topic);
+    lines.push('[비율] ' + built.aspect);
+    lines.push('[스타일] ' + (state.prompt.style || '') + ' · [분위기] ' + (state.prompt.mood || '') + ' · [조명] ' + (state.prompt.lighting || '') +
+      (state.prompt.extra ? ' · [추가] ' + state.prompt.extra : ''));
+    lines.push('[지금 프롬프트] ' + String(built.prompt || '').slice(0, 900));
+    lines.push('');
+    lines.push('위 조건을 유지하면서 이미지 생성 모델(GPT Image·Imagen·Midjourney)에 바로 넣을 영문 프롬프트 한 문단(400자 이내)을 만들어 주세요.');
+    lines.push('규칙: 한국어 설명 금지, 따옴표·머리말 금지, 피사체+배경+조명+구도+질감 순서, 썸네일에 제목이 올라갈 여백(negative space) 한 곳 지정, 상표·실존 인물 이름 금지.');
+    return lines.join('\n');
+  }
+
+  function runFreePrompt() {
+    if (!FREE) { toast('무료 체험 모듈을 불러오지 못했습니다. 새로고침해 주세요.'); return; }
+    if (!state.title && !state.topic) {
+      toast('제목이나 주제를 먼저 입력해 주세요.');
+      switchView('make');
+      return;
+    }
+    var btn = $('#freePrompt');
+    var host = $('#freeUpgrade');
+    if (host) host.innerHTML = '';
+    if (btn) { btn.disabled = true; btn.textContent = '무료 AI가 다듬는 중…'; }
+    freePromptState('무료 체험으로 프롬프트를 다듬는 중… (보통 3~10초)', 'busy');
+    FREE.generate({
+      prompt: freePromptRequest(),
+      system: '이미지 생성 프롬프트를 쓰는 아트 디렉터다. 짧고 구체적인 영어 한 문단만 출력한다.',
+      options: { temperature: 0.8, maxTokens: 500 }
+    }).then(function (res) {
+      if (btn) { btn.disabled = false; btn.textContent = '무료 AI로 프롬프트 다듬기'; }
+      if (!res.ok) {
+        if (host) {
+          FREE.mountUpgrade(host, res, {
+            onConnectKey: function () {
+              switchView('pro');
+              toast('Pro 화면에서 키를 넣으면 이어서 쓸 수 있습니다.');
+            },
+            onBridge: function () { updatePromptUI(); switchView('bridge'); }
+          });
+        }
+        freePromptState(res.message, 'error');
+        toast(res.message);
+        return;
+      }
+      var text = String(res.text || '').replace(/^["'`\s]+|["'`\s]+$/g, '').replace(/\s+/g, ' ').trim();
+      if (!text) {
+        freePromptState('응답이 비어 있습니다. 다시 시도해 주세요.', 'error');
+        return;
+      }
+      state.freePrompt = text;
+      el.promptPreview.textContent = text;
+      copyText(text, '다듬은 프롬프트를 복사했습니다.');
+      var left = (res.remaining === undefined || res.remaining === null) ? '' : ' · 남은 맛보기 ' + res.remaining + (res.limit ? '/' + res.limit : '') + '회';
+      freePromptState('다듬은 프롬프트를 클립보드에 넣었습니다. 이미지 AI에 붙여넣으세요.' + left, 'ok');
+    });
   }
 
   function updatePromptUI() {
@@ -2759,6 +2977,11 @@
     bindSubjectRange('subjectX', 'x', 'posXVal');
     bindSubjectRange('subjectY', 'y', 'posYVal');
     bindSubjectRange('shadowRange', 'shadow', 'shadowVal');
+    var aiPerson = $('#aiCutPerson');
+    if (aiPerson) aiPerson.addEventListener('click', function () { runAiCut('person'); });
+    var aiObject = $('#aiCutObject');
+    if (aiObject) aiObject.addEventListener('click', function () { runAiCut('object'); });
+
     $('#cutPreview').addEventListener('click', function () {
       if (!photo.canvas) return;
       previewOriginal = !previewOriginal;
@@ -2858,6 +3081,14 @@
       if (provider().id === 'claude') enhancePrompt();
       else generateImage();
     });
+    if (FREE) {
+      FREE.configure({ app: 'ai-image-studio' });
+      var fb = $('#freeBadge');
+      if (fb) FREE.mountBadge(fb);
+    }
+    var freeBtn = $('#freePrompt');
+    if (freeBtn) freeBtn.addEventListener('click', runFreePrompt);
+
     $('#sampleGenerate').addEventListener('click', function () {
       setBusy(true);
       setRunStatus('샘플 배경을 만드는 중…', 'busy');

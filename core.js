@@ -1104,6 +1104,98 @@
   }
 
   /**
+   * 세그멘테이션 마스크 → 알파.
+   * MediaPipe 는 두 가지를 준다 — 확률(0~1 float) 또는 클래스 라벨(0=배경).
+   * 사진 크기와 마스크 크기가 달라도 되도록 이중선형 보간으로 늘리고,
+   * lo~hi 구간을 smoothstep 으로 부드럽게 만든 뒤 feather 만큼 흐린다.
+   * @param {Float32Array|Uint8ClampedArray|number[]} mask
+   * @param {number} mw @param {number} mh
+   * @param {number} w @param {number} h
+   * @param {object} [opts] {kind:'confidence'|'category', lo, hi, feather, invert}
+   * @returns {Float32Array} 길이 w*h, 0(배경)~1(피사체)
+   */
+  function maskToAlpha(mask, mw, mh, w, h, opts) {
+    var o = opts || {};
+    var kind = o.kind === 'category' ? 'category' : 'confidence';
+    var lo = clamp(o.lo == null ? 0.35 : Number(o.lo), 0, 1);
+    var hi = clamp(o.hi == null ? 0.65 : Number(o.hi), 0, 1);
+    if (hi <= lo) hi = Math.min(1, lo + 0.05);
+    var feather = o.feather == null ? 2 : Math.max(0, Math.min(14, Number(o.feather)));
+    var invert = !!o.invert;
+    if (!mask || !mw || !mh || !w || !h) return new Float32Array(Math.max(0, w * h));
+
+    function sample(x, y) {
+      // 마스크 좌표(중심 정렬)로 변환
+      var fx = (x + 0.5) * mw / w - 0.5;
+      var fy = (y + 0.5) * mh / h - 0.5;
+      var x0 = Math.floor(fx), y0 = Math.floor(fy);
+      var tx = fx - x0, ty = fy - y0;
+      var x1 = Math.min(mw - 1, Math.max(0, x0 + 1));
+      var y1 = Math.min(mh - 1, Math.max(0, y0 + 1));
+      x0 = Math.min(mw - 1, Math.max(0, x0));
+      y0 = Math.min(mh - 1, Math.max(0, y0));
+      var a = Number(mask[y0 * mw + x0]) || 0;
+      var b = Number(mask[y0 * mw + x1]) || 0;
+      var c = Number(mask[y1 * mw + x0]) || 0;
+      var d = Number(mask[y1 * mw + x1]) || 0;
+      return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+    }
+
+    var alpha = new Float32Array(w * h);
+    var i, x, y;
+    if (kind === 'category') {
+      for (y = 0; y < h; y++) {
+        for (x = 0; x < w; x++) {
+          i = y * w + x;
+          var lab = sample(x, y);
+          alpha[i] = (lab >= 0.5 ? 1 : 0) === (invert ? 0 : 1) ? 1 : 0;
+        }
+      }
+    } else {
+      for (y = 0; y < h; y++) {
+        for (x = 0; x < w; x++) {
+          i = y * w + x;
+          var v = sample(x, y);
+          if (invert) v = 1 - v;
+          var t = (v - lo) / (hi - lo);
+          if (t <= 0) alpha[i] = 0;
+          else if (t >= 1) alpha[i] = 1;
+          else alpha[i] = t * t * (3 - 2 * t);
+        }
+      }
+    }
+    if (feather > 0) alpha = blurAlpha(alpha, w, h, feather);
+    return alpha;
+  }
+
+  /**
+   * 알파를 RGBA 에 적용하고 통계를 낸다(기존 removeBackground 와 같은 모양).
+   * @param {Uint8ClampedArray} rgba @param {Float32Array} alpha
+   */
+  function applyAlpha(rgba, alpha, w, h) {
+    var n = w * h;
+    var out = new Uint8ClampedArray(rgba);
+    var transparent = 0, soft = 0, kept = 0;
+    for (var i = 0; i < n; i++) {
+      var a = alpha[i];
+      if (a < 0.04) { alpha[i] = 0; transparent++; }
+      else if (a > 0.96) { alpha[i] = 1; kept++; }
+      else soft++;
+      out[i * 4 + 3] = Math.round((rgba[i * 4 + 3] == null ? 255 : rgba[i * 4 + 3]) * alpha[i]);
+    }
+    return {
+      data: out,
+      alpha: alpha,
+      stats: {
+        transparentRatio: n ? transparent / n : 0,
+        softRatio: n ? soft / n : 0,
+        keptRatio: n ? kept / n : 0,
+        method: 'ai'
+      }
+    };
+  }
+
+  /**
    * 배경 투명화.
    * @param {Uint8ClampedArray|Uint8Array} rgba  RGBA 픽셀
    * @param {number} w @param {number} h
@@ -1817,6 +1909,7 @@
     relativeLuminance: relativeLuminance, contrastRatio: contrastRatio, readableInk: readableInk,
     slugify: slugify, formatBytes: formatBytes, clone: clone,
     sampleEdgeColors: sampleEdgeColors, removeBackground: removeBackground, blurAlpha: blurAlpha,
+    maskToAlpha: maskToAlpha, applyAlpha: applyAlpha,
     parseRich: parseRich, toSegments: toSegments, wrapRich: wrapRich, fitTitle: fitTitle, fontString: fontString,
     quickHeadlineScore: quickHeadlineScore,
     buildImagePrompt: buildImagePrompt, promptVariants: promptVariants, buildPromptEnhanceRequest: buildPromptEnhanceRequest,
