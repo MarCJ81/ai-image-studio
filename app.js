@@ -1910,18 +1910,13 @@
   }
 
   function freePromptRequest() {
-    var built = buildPrompt();
-    var lines = [];
-    lines.push('[제목] ' + (state.title || '없음'));
-    if (state.topic) lines.push('[주제] ' + state.topic);
-    lines.push('[비율] ' + built.aspect);
-    lines.push('[스타일] ' + (state.prompt.style || '') + ' · [분위기] ' + (state.prompt.mood || '') + ' · [조명] ' + (state.prompt.lighting || '') +
-      (state.prompt.extra ? ' · [추가] ' + state.prompt.extra : ''));
-    lines.push('[지금 프롬프트] ' + String(built.prompt || '').slice(0, 900));
-    lines.push('');
-    lines.push('위 조건을 유지하면서 이미지 생성 모델(GPT Image·Imagen·Midjourney)에 바로 넣을 영문 프롬프트 한 문단(400자 이내)을 만들어 주세요.');
-    lines.push('규칙: 한국어 설명 금지, 따옴표·머리말 금지, 피사체+배경+조명+구도+질감 순서, 썸네일에 제목이 올라갈 여백(negative space) 한 곳 지정, 상표·실존 인물 이름 금지.');
-    return lines.join('\n');
+    // 워커는 짧은 입력에서 안정적이다. 제목·스타일만으로 영문 프롬프트 한 줄을 받는다.
+    var title = String(state.title || state.topic || '').replace(/\s+/g, ' ').slice(0, 40) || 'thumbnail';
+    var style = String((state.prompt && state.prompt.style) || '').slice(0, 20);
+    var mood = String((state.prompt && state.prompt.mood) || '').slice(0, 16);
+    return 'Write one English image prompt for a 9:16 thumbnail. Subject: ' + title +
+      (style ? '. Style: ' + style : '') + (mood ? '. Mood: ' + mood : '') +
+      '. One sentence, under 45 words, leave space for a title on top.';
   }
 
   function runFreePrompt() {
@@ -1938,8 +1933,7 @@
     freePromptState('무료 체험으로 프롬프트를 다듬는 중… (보통 3~10초)', 'busy');
     FREE.generate({
       prompt: freePromptRequest(),
-      system: '이미지 생성 프롬프트를 쓰는 아트 디렉터다. 짧고 구체적인 영어 한 문단만 출력한다.',
-      options: { temperature: 0.8, maxTokens: 500 }
+      options: { temperature: 0.8, maxTokens: 400 }
     }).then(function (res) {
       if (btn) { btn.disabled = false; btn.textContent = '무료 AI로 프롬프트 다듬기'; }
       if (!res.ok) {
